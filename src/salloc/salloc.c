@@ -560,7 +560,7 @@ int main(int argc, char **argv)
 		pid = getpid();
 		setpgid(pid, pid);
 
-		tcsetpgrp(STDIN_FILENO, pid);
+		tcsetpgrp(STDIN_FILENO, pid);//交互模式，将当前进程设置为前台进程
 	}
 	slurm_mutex_lock(&allocation_state_lock);
 	if (suspend_flag)
@@ -590,7 +590,7 @@ int main(int argc, char **argv)
 	}
 
 	if (is_interactive)
-		tcsetpgrp(STDIN_FILENO, pid);
+		tcsetpgrp(STDIN_FILENO, pid);//交互模式，将当前进程设置为前台进程
 
 	/*
 	 * Relinquish the job allocation (if not already revoked).

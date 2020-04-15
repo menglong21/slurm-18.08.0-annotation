@@ -67,7 +67,7 @@ static pthread_mutex_t heartbeat_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t heartbeat_cond = PTHREAD_COND_INITIALIZER;
 
 static bool heart_beating;
-
+//心跳线程
 static void *_heartbeat_thread(void *no_data)
 {
 	/*
@@ -140,6 +140,7 @@ static void *_heartbeat_thread(void *no_data)
 delay:
 		xfree(reg_file);
 		xfree(new_file);
+		//等待heartbeat_cond
 		slurm_cond_timedwait(&heartbeat_cond, &heartbeat_mutex, &ts);
 	}
 	slurm_mutex_unlock(&heartbeat_mutex);

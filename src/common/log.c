@@ -339,7 +339,7 @@ _log_init(char *prog, log_options_t opt, log_facility_t fac, char *logfile )
 
 		fd = open(logfile, mode, S_IRUSR | S_IWUSR);//允许文件的所有者读写
 		if (fd >= 0)
-			fp = fdopen(fd, "a");//dopen()会将参数fildes 的文件描述词，转换为对应的文件指针后返回。
+			fp = fdopen(fd, "a");//fdopen()会将参数fildes 的文件描述词，转换为对应的文件指针后返回。
 			//参数mode 字符串则代表着文件指针的流形态，此形态必须和原先文件描述词读写模式相同。
 
 		if ((fd < 0) || !fp) {

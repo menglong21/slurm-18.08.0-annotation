@@ -248,7 +248,7 @@ static void _init__progname (const char *argv0)
 #endif /* HAVE_SETPROCTITLE */
 
 /*
- * Call this early in startup to save the original argc/argv values.
+ * 在启动时尽早调用此方法以保存原始argc / argv值.
  *
  * *argv will not be overwritten by this routine, but may be overwritten
  * during setproctitle. Also, the physical location of the environment

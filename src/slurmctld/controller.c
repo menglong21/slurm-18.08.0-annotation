@@ -118,16 +118,16 @@
 #include "src/slurmctld/trigger_mgr.h"
 
 
-#define DEFAULT_DAEMONIZE 1	/* Run as daemon by default if set */
-#define DEFAULT_RECOVER   1	/* Default state recovery on restart
-				 * 0 = use no saved state information
-				 * 1 = recover saved job state,
+#define DEFAULT_DAEMONIZE 1	/* 如果设置，默认情况下作为守护程序运行 */
+#define DEFAULT_RECOVER   1	/* Default state recovery on restart重启时的默认状态恢复
+				 * 0 = use no saved state information不使用保存的状态信息，
+				 * 1 = recover saved job state恢复保存的作业状态,节点DOWN/DRAIN状态和原因信息
 				 *     node DOWN/DRAIN state & reason information
-				 * 2 = recover state saved from last shutdown */
+				 * 2 = recover state saved from last shutdown恢复上次关机时保存的状态 */
 #define MIN_CHECKIN_TIME  3	/* Nodes have this number of seconds to
 				 * check-in before we ping them */
-#define SHUTDOWN_WAIT     2	/* Time to wait for backup server shutdown */
-#define JOB_COUNT_INTERVAL 30   /* Time to update running job count */
+#define SHUTDOWN_WAIT     2	/* 等待备用服务器关闭的时间 */
+#define JOB_COUNT_INTERVAL 30   /* 更新正在运行的作业计数的时间 */
 
 /**************************************************************************\
  * To test for memory leaks, set MEMORY_LEAK_DEBUG to 1 using
@@ -275,7 +275,7 @@ int main(int argc, char **argv)
 	 * Make sure we have no extra open files which
 	 * would be propagated to spawned tasks.
 	 */
-	cnt = sysconf(_SC_OPEN_MAX);
+	cnt = sysconf(_SC_OPEN_MAX);//关闭3号以上文件描述符
 	for (i = 3; i < cnt; i++)
 		close(i);
 
@@ -331,7 +331,7 @@ int main(int argc, char **argv)
 	_update_nice();
 	if (!test_config)
 		_kill_old_slurmctld();//杀死当前正在运行的slurmctld
-	//关闭标准输入，标准输出，标准出错
+	//设置标准输入，标准输出，标准出错fd在子进程中执行时关闭
 	for (i = 0; i < 3; i++)
 		fd_set_close_on_exec(i);
 	//根据上面的命令行参数来控制程序是守护进程方式执行还是前台执行
@@ -695,7 +695,7 @@ int main(int argc, char **argv)
 				exit(test_config_rc);
 			}
 
-			if ((error_code = read_slurm_conf(recover, false))) {
+			if ((error_code = read_slurm_conf(recover, false))) {//默认恢复保存的作业状态,节点DOWN/DRAIN状态和原因信息
 				fatal("read_slurm_conf reading %s: %s",
 				      slurmctld_conf.slurm_conf,
 				      slurm_strerror(error_code));
@@ -1068,9 +1068,10 @@ static void _reconfigure_slurm(void)
 }
 
 /* Request that the job scheduler execute soon (typically within seconds) */
+//请求作业调度器立即执行
 extern void queue_job_scheduler(void)
 {
-	slurm_mutex_lock(&sched_cnt_mutex);
+	slurm_mutex_lock(&sched_cnt_mutex);//此处锁可以优化
 	job_sched_cnt++;
 	slurm_mutex_unlock(&sched_cnt_mutex);
 }
@@ -1127,17 +1128,18 @@ static void *_slurmctld_signal_hand(void *no_data)
 	}
 }
 
+//获取信号当前处理函数设置，将SIG_IGN改为SIG_DFL
 static void _default_sigaction(int sig)
 {
 	struct sigaction act;
-	if (sigaction(sig, NULL, &act)) {
+	if (sigaction(sig, NULL, &act)) {//检测，相当于初始化act
 		error("sigaction(%d): %m", sig);
 		return;
 	}
 	if (act.sa_handler != SIG_IGN)
 		return;
 
-	act.sa_handler = SIG_DFL;
+	act.sa_handler = SIG_DFL;//执行系统默认动作
 	if (sigaction(sig, &act, NULL))//设置信号
 		error("sigaction(%d): %m", sig);
 }
@@ -1191,7 +1193,7 @@ static void *_slurmctld_rpc_mgr(void *no_data)
 	}
 	sockfd = xmalloc(sizeof(int) * nports);
 	for (i = 0; i < nports; i++) {
-		//为每个端口创建并设置一个套接字，绑定到套接字，并侦听连接。
+		//配置文件里可以指定多个端口，为每个端口创建并设置一个套接字，绑定到套接字，并侦听连接。
 		sockfd[i] = slurm_init_msg_engine_addrname_port(
 					node_addr,
 					slurmctld_conf.slurmctld_port+i);
@@ -1222,7 +1224,7 @@ static void *_slurmctld_rpc_mgr(void *no_data)
 	/*
 	 * Process incoming RPCs until told to shutdown
 	 */
-	while (_wait_for_server_thread()) {//新来一个rpc,进入循环
+	while (_wait_for_server_thread()) {//新来一个rpc,进入循环。内部控制线程数
 		int max_fd = -1;
 		FD_ZERO(&rfds);
 		for (i=0; i<nports; i++) {
@@ -1370,7 +1372,7 @@ static bool _wait_for_server_thread(void)
 			rc = false;
 			break;
 		}
-		//如果slurmctld_config.server_thread_count < 256退出，否则阻塞
+		//如果slurmctld_config.server_thread_count < 256退出死循环，否则阻塞
 		if (slurmctld_config.server_thread_count < max_server_threads) {
 			slurmctld_config.server_thread_count++;//slurmctld_config.server_thread_count加1
 			break;
@@ -1414,9 +1416,10 @@ extern void server_thread_decr(void)
 }
 
 /* Increment slurmctld thread count (as applies to thread limit) */
+//增加slurmctld线程计数
 extern void server_thread_incr(void)
 {
-	slurm_mutex_lock(&slurmctld_config.thread_count_lock);
+	slurm_mutex_lock(&slurmctld_config.thread_count_lock);//此处锁可以优化成原子操作
 	slurmctld_config.server_thread_count++;
 	slurm_mutex_unlock(&slurmctld_config.thread_count_lock);
 }
@@ -1434,13 +1437,14 @@ static int _accounting_cluster_ready(void)
 	lock_slurmctld(node_write_lock);
 	/* 现在获取集群中所有节点的名称，并发送它。
 	*/
+	//构建节点位图
 	total_node_bitmap = bit_alloc(node_record_count);
 	bit_nset(total_node_bitmap, 0, node_record_count-1);
+	//位图转换成集群名称
 	cluster_nodes = bitmap2node_name_sortable(total_node_bitmap, 0);
 	FREE_NULL_BITMAP(total_node_bitmap);
 
 	assoc_mgr_lock(&locks);
-	//
 	cluster_tres_str = slurmdb_make_tres_string(
 		assoc_mgr_tres_list, TRES_STR_FLAG_SIMPLE);
 	assoc_mgr_unlock(&locks);
@@ -1468,6 +1472,7 @@ static int _accounting_cluster_ready(void)
 		/* see if we are running directly to a database
 		 * instead of a slurmdbd.
 		 */
+		 //发送所有信息给控制器用于记账
 		send_all_to_accounting(event_time, rc);
 		rc = SLURM_SUCCESS;
 	}
@@ -1995,7 +2000,7 @@ static void *_slurmctld_background(void *no_data)
 	if ((slurmctld_conf.min_job_age > 0) &&
 	    (slurmctld_conf.min_job_age < PURGE_JOB_INTERVAL)) {
 		/* Purge jobs more quickly, especially for high job flow */
-		purge_job_interval = MAX(10, slurmctld_conf.min_job_age);
+		purge_job_interval = MAX(10, slurmctld_conf.min_job_age);//清理作业周期MinJobAge,如果前处理较长，需要调大这个参数
 	} else
 		purge_job_interval = PURGE_JOB_INTERVAL;
 
@@ -2098,7 +2103,7 @@ static void *_slurmctld_background(void *no_data)
 			unlock_slurmctld(job_write_lock);
 		}
 
-		if (slurmctld_conf.health_check_interval &&
+		if (slurmctld_conf.health_check_interval &&//slurmctld维护节点健康检查超时时间
 		    (difftime(now, last_health_check_time) >=
 		     slurmctld_conf.health_check_interval) &&
 		    is_ping_done()) {
@@ -2110,7 +2115,7 @@ static void *_slurmctld_background(void *no_data)
 				last_health_check_time = now;
 			}
 			lock_slurmctld(node_write_lock);
-			run_health_check();
+			run_health_check();//节点健康检查
 			unlock_slurmctld(node_write_lock);
 		}
 
@@ -2306,7 +2311,7 @@ static void *_slurmctld_background(void *no_data)
 }
 
 /* save_all_state - save entire slurmctld state for later recovery */
-//保存整个slurmctld状态，以便稍后恢复
+//保存整个slurmctld状态到配置文件StateSaveLocation，以便稍后恢复
 extern void save_all_state(void)
 {
 	/* Each of these functions lock their own databases */
@@ -2806,7 +2811,7 @@ static int _shutdown_backup_controller(void)
 		arg = xmalloc(sizeof(int));
 		*arg = i;
 		slurm_thread_create_detached(NULL, _shutdown_bu_thread, arg);
-		slurm_mutex_lock(&bu_mutex);
+		slurm_mutex_lock(&bu_mutex);//此处锁可以优化成原子操作
 		bu_thread_cnt++;
 		slurm_mutex_unlock(&bu_mutex);
 	}
@@ -3326,11 +3331,11 @@ static void _test_thread_limit(void)
 #ifdef RLIMIT_NOFILE
 {
 	struct rlimit rlim[1];
-	if (getrlimit(RLIMIT_NOFILE, rlim) < 0)
+	if (getrlimit(RLIMIT_NOFILE, rlim) < 0)//测试一个进程可以打开的最大文件数，内核默认是1024
 		error("Unable to get file count limit");
 	else if ((rlim->rlim_cur != RLIM_INFINITY) &&
 		 (max_server_threads > rlim->rlim_cur)) {
-		max_server_threads = rlim->rlim_cur;
+		max_server_threads = rlim->rlim_cur;//可能将线程数缩小至rlim->rlim_cur
 		info("Reducing max_server_thread to %u due to file count limit "
 		     "of %u", max_server_threads, max_server_threads);
 	}
@@ -3535,7 +3540,7 @@ static void _update_diag_job_state_counts(void)
 	slurmctld_diag_stats.job_states_ts = time(NULL);
 	list_for_each(job_list, _foreach_job_running, NULL);
 }
-
+//没有超时控制，why？
 static void *_wait_primary_prog(void *arg)
 {
 	primary_thread_arg_t *wait_arg = (primary_thread_arg_t *) arg;
@@ -3553,7 +3558,7 @@ static void *_wait_primary_prog(void *arg)
 	xfree(wait_arg);
 	return (void *) NULL;
 }
-
+//主节点如果放弃控制权的时候，或者备用节点获得控制权的时候，执行各脚本
 static void _run_primary_prog(bool primary_on)
 {
 	primary_thread_arg_t *wait_arg;
@@ -3573,7 +3578,7 @@ static void _run_primary_prog(bool primary_on)
 	if ((prog_name == NULL) || (prog_name[0] == '\0'))
 		return;
 
-	if (access(prog_name, X_OK) < 0) {
+	if (access(prog_name, X_OK) < 0) {//判断是否有可执行权限
 		error("%s: Invalid %s: %m", __func__, prog_type);
 		return;
 	}
@@ -3589,10 +3594,10 @@ static void _run_primary_prog(bool primary_on)
 		return;
 	}
 	if (cpid == 0) {		/* Child */
-		for (i = 0; i < 1024; i++)
+		for (i = 0; i < 1024; i++)//关闭0-1024文件描述符
 			(void) close(i);
-		setpgid(0, 0);
-		execv(prog_name, argv);
+		setpgid(0, 0);//将当前进程id设置为进程组id
+		execv(prog_name, argv);//执行参数指定的脚本。
 		exit(127);
 	}
 

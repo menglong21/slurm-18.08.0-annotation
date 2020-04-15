@@ -78,7 +78,7 @@ static bool init_run = false;
 
 /*
  * Initialize the job container plugin.
- *
+ *初始化作业容器插件
  * RET - slurm error code
  */
 extern int job_container_init(void)

@@ -225,7 +225,7 @@ main (int argc, char **argv)
 	log_options_t lopts = LOG_OPTS_INITIALIZER;
 
 	/* NOTE: logfile is NULL at this point */
-	log_init(argv[0], lopts, LOG_DAEMON, NULL);//1.初始化log
+	log_init(argv[0], lopts, LOG_DAEMON, NULL);//1.初始化log为空
 
 	/*
 	 * Make sure we have no extra open files which
@@ -1505,7 +1505,7 @@ _slurmd_init(void)
 	 * build_all_nodeline_info() to be called with proper argument. */
 	if (slurm_select_init(1) != SLURM_SUCCESS )
 		return SLURM_FAILURE;
-	build_all_nodeline_info(true, 0);//NodeName
+	build_all_nodeline_info(true, 0);//NodeName，true构建节点位图
 	build_all_frontend_info(true);//FrontendName
 
 	/*
@@ -2467,7 +2467,7 @@ extern int run_script_health_check(void)
 	if (conf->health_check_program && (conf->health_check_interval != 0)) {
 		char *env[1] = { NULL };
 		rc = run_script("health_check", conf->health_check_program,
-				0, 60, env, 0);
+				0, 60, env, 0);//硬编码60s,超时强制杀死
 	}
 
 	return rc;

@@ -177,7 +177,7 @@ static ListIterator list_free_iterators = NULL;
 static pthread_mutex_t list_free_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /***************
- *  Functions  *
+ *  Functions  链表操作，值得好好学习*
  ***************/
 
 /* list_create()
@@ -407,7 +407,7 @@ list_delete_all (List l, ListFindF f, void *key)
 /* list_for_each()
  */
 int
-list_for_each (List l, ListForF f, void *arg)
+list_for_each (List l, ListForF f, void *arg)//遍历链表并执行f
 {
 	ListNode p;
 	int n = 0;

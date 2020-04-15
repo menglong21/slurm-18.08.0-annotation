@@ -1480,7 +1480,7 @@ extern int select_p_node_init(struct node_record *node_ptr, int node_cnt)
 		return SLURM_ERROR;
 	}
 
-	/* initial global core data structures */
+	/* 初始化全局核心数据结构，Slurm管理节点资源的方式之一 */
 	select_state_initializing = true;
 	select_fast_schedule = slurm_get_fast_schedule();
 	cr_init_global_core_data(node_ptr, node_cnt, select_fast_schedule);

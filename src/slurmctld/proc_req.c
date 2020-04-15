@@ -306,7 +306,7 @@ void slurmctld_req(slurm_msg_t *msg, connection_arg_t *arg)
 	 */
 	START_TIMER;
 	if (slurmctld_conf.debug_flags & DEBUG_FLAG_PROTOCOL) {
-		char *p = rpc_num2string(msg->msg_type);
+		char *p = rpc_num2string(msg->msg_type);//将消息类型转换为字符串，调试用
 		if (msg->conn) {
 			info("%s: received opcode %s from persist conn on (%s)%s",
 			     __func__, p, msg->conn->cluster_name,
@@ -322,7 +322,7 @@ void slurmctld_req(slurm_msg_t *msg, connection_arg_t *arg)
 			error("%s: No arg given and this doesn't appear to be a persistent connection, this should never happen", __func__);
 		}
 	}
-
+	//根据消息类型，调用不同的处理逻辑，套路
 	switch (msg->msg_type) {
 	case REQUEST_RESOURCE_ALLOCATION:
 		_slurm_rpc_allocate_resources(msg);
@@ -437,10 +437,10 @@ void slurmctld_req(slurm_msg_t *msg, connection_arg_t *arg)
 		_slurm_rpc_shutdown_controller_immediate(msg);
 		break;
 	case REQUEST_SUBMIT_BATCH_JOB:
-		_slurm_rpc_submit_batch_job(msg);
+		_slurm_rpc_submit_batch_job(msg);//提交作业sbatch
 		break;
 	case REQUEST_SUBMIT_BATCH_JOB_PACK:
-		_slurm_rpc_submit_batch_pack_job(msg);
+		_slurm_rpc_submit_batch_pack_job(msg);//提交作业sbatch
 		break;
 	case REQUEST_UPDATE_FRONT_END:
 		_slurm_rpc_update_front_end(msg);
@@ -572,7 +572,7 @@ void slurmctld_req(slurm_msg_t *msg, connection_arg_t *arg)
 		_slurm_rpc_kill_job(msg);
 		break;
 	case MESSAGE_COMPOSITE:
-		_slurm_rpc_composite_msg(msg);
+		_slurm_rpc_composite_msg(msg);//处理消息聚合
 		break;
 	case REQUEST_ASSOC_MGR_INFO:
 		_slurm_rpc_assoc_mgr_info(msg);
@@ -3130,8 +3130,8 @@ static void _slurm_rpc_node_registration(slurm_msg_t * msg,
 							  msg->protocol_version,
 							  &newly_up);
 #else
-		validate_jobs_on_node(node_reg_stat_msg);
-		error_code = validate_node_specs(node_reg_stat_msg,
+		validate_jobs_on_node(node_reg_stat_msg);//确认节点上的作业，清理无效作业
+		error_code = validate_node_specs(node_reg_stat_msg,//更新节点配置
 						 msg->protocol_version,
 						 &newly_up);
 #endif
@@ -3997,6 +3997,7 @@ static void _slurm_rpc_submit_batch_job(slurm_msg_t *msg)
 	struct job_record *job_ptr = NULL;
 	slurm_msg_t response_msg;
 	submit_response_msg_t submit_msg;
+	//就是传过来的msg里面的数据
 	job_desc_msg_t *job_desc_msg = (job_desc_msg_t *) msg->data;
 	/* Locks: Read config, read job, read node, read partition */
 	slurmctld_lock_t job_read_lock = {
@@ -4021,7 +4022,7 @@ static void _slurm_rpc_submit_batch_job(slurm_msg_t *msg)
 		goto send_msg;
 	}
 
-	if ((error_code = _valid_id("REQUEST_SUBMIT_BATCH_JOB",
+	if ((error_code = _valid_id("REQUEST_SUBMIT_BATCH_JOB",//1.验证用户和组id
 				    job_desc_msg, uid, gid))) {
 		reject_job = true;
 		goto send_msg;
@@ -4072,7 +4073,7 @@ static void _slurm_rpc_submit_batch_job(slurm_msg_t *msg)
 	} else {
 		/* Create new job allocation */
 		job_desc_msg->pack_job_offset = NO_VAL;
-		error_code = job_allocate(job_desc_msg,//创建作业
+		error_code = job_allocate(job_desc_msg,//2.创建作业
 					  job_desc_msg->immediate,
 					  false, NULL, 0, uid, &job_ptr,
 					  &err_msg,
@@ -4117,7 +4118,7 @@ send_msg:
 		response_msg.conn = msg->conn;
 		response_msg.msg_type = RESPONSE_SUBMIT_BATCH_JOB;
 		response_msg.data = &submit_msg;
-		slurm_send_node_msg(msg->conn_fd, &response_msg);
+		slurm_send_node_msg(msg->conn_fd, &response_msg);//3.创建作业成功，发送返回消息
 
 		schedule_job_save();	/* Has own locks */
 		schedule_node_save();	/* Has own locks */
@@ -6618,7 +6619,7 @@ static void  _slurm_rpc_composite_msg(slurm_msg_t *msg)
 	_throttle_start(&active_rpc_cnt);
 	lock_slurmctld(job_write_lock);
 	gettimeofday(&start_tv, NULL);
-	_slurm_rpc_comp_msg_list(comp_msg, &run_scheduler,
+	_slurm_rpc_comp_msg_list(comp_msg, &run_scheduler,//处理聚合消息列表
 				 comp_resp_msg.msg_list, &start_tv,
 				 sched_timeout);
 	unlock_slurmctld(job_write_lock);
@@ -6743,7 +6744,7 @@ static void  _slurm_rpc_comp_msg_list(composite_msg_t * comp_msg,
 			_slurm_rpc_epilog_complete(next_msg, run_scheduler, 1);
 			break;
 		case MESSAGE_NODE_REGISTRATION_STATUS:
-			_slurm_rpc_node_registration(next_msg, 1);
+			_slurm_rpc_node_registration(next_msg, 1);//消息聚合时确认节点
 			break;
 		default:
 			error("_slurm_rpc_comp_msg_list: invalid msg type");

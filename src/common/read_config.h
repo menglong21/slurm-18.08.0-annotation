@@ -163,7 +163,7 @@ extern uint16_t drop_priv_flag;
 #else
 #  define DEFAULT_SELECT_TYPE       "select/linear"
 #endif
-#define DEFAULT_SLURMCTLD_PIDFILE   "/var/run/slurmctld.pid"
+#define DEFAULT_SLURMCTLD_PIDFILE   "/var/run/slurmctld.pid"//默认slurmctld.pid文件路径
 #define DEFAULT_SLURMCTLD_TIMEOUT   120
 #define DEFAULT_SLURMD_PIDFILE      "/var/run/slurmd.pid"
 #define DEFAULT_SLURMD_TIMEOUT      300
@@ -298,7 +298,7 @@ typedef struct slurm_conf_downnodes {
 typedef struct {
 	char *name;
 	char *value;
-} config_key_pair_t;
+} config_key_pair_t;//配置键值对
 
 typedef struct {
 	char *name;

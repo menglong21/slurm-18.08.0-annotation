@@ -64,7 +64,7 @@ typedef struct xhash_item_st {
 	uint32_t	keysize; /* cached key size                         */
 	UT_hash_handle	hh;      /* make this structure hashable by uthash  */
 } xhash_item_t;
-
+//优秀
 struct xhash_st {
 	uint32_t		count;    /* user items count                */
 	xhash_freefunc_t	freefunc; /* function used to free items     */
@@ -81,8 +81,8 @@ xhash_t *xhash_init(xhash_idfunc_t idfunc, xhash_freefunc_t freefunc)
 	table = (xhash_t*)xmalloc(sizeof(xhash_t));
 	table->ht = NULL; /* required by uthash */
 	table->count = 0;
-	table->identify = idfunc;
-	table->freefunc = freefunc;
+	table->identify = idfunc;//初始化时传入函数指针
+	table->freefunc = freefunc;//初始化时传入函数指针
 	return table;
 }
 

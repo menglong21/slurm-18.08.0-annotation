@@ -492,6 +492,7 @@ static double _get_fairshare_priority(struct job_record *job_ptr)
 }
 
 /* Returns the priority after applying the weight factors */
+//计算多因子优先级
 static uint32_t _get_priority_internal(time_t start_time,
 				       struct job_record *job_ptr)
 {
@@ -1758,7 +1759,7 @@ int fini ( void )
 
 extern uint32_t priority_p_set(uint32_t last_prio, struct job_record *job_ptr)
 {
-	uint32_t priority = _get_priority_internal(time(NULL), job_ptr);
+	uint32_t priority = _get_priority_internal(time(NULL), job_ptr);//实际计算作业优先级
 
 	debug2("initial priority for job %u is %u", job_ptr->job_id, priority);
 

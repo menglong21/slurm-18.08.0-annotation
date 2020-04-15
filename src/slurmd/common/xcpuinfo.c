@@ -67,7 +67,7 @@
 #define _MAX_SOCKET_INX 1024
 
 #if !defined(HAVE_HWLOC)
-static char* _cpuinfo_path = "/proc/cpuinfo";
+static char* _cpuinfo_path = "/proc/cpuinfo";//如果没有指定hwloc的话，则从/proc/cpuinfo读取CPU硬件信息
 
 static int _compute_block_map(uint16_t numproc,
 			      uint16_t **block_map, uint16_t **block_map_inv);

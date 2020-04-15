@@ -117,10 +117,10 @@
 #define HOSTLIST_MAX_SIZE 	80
 
 typedef enum {
-	DSH_NEW,        /* Request not yet started */
-	DSH_ACTIVE,     /* Request in progress */
-	DSH_DONE,       /* Request completed normally */
-	DSH_NO_RESP,    /* Request timed out */
+	DSH_NEW,        /* Request not yet started未启动 */
+	DSH_ACTIVE,     /* Request in progress处理中 */
+	DSH_DONE,       /* Request completed normally正常结束 */
+	DSH_NO_RESP,    /* Request timed out超时 */
 	DSH_FAILED,     /* Request resulted in error */
 	DSH_DUP_JOBID	/* Request resulted in duplicate job ID error */
 } state_t;
@@ -493,7 +493,7 @@ static agent_info_t *_make_agent_info(agent_arg_t *agent_arg_ptr)
 		span = set_span(agent_arg_ptr->node_count, 1);
 #endif
 		agent_info_ptr->get_reply = true;
-	} else {
+	} else {//由于agent发送的消息类型过多，注意这里的两种分类
 		/* Message is going to one node (for srun) or we want
 		 * it to get processed ASAP (SHUTDOWN or RECONFIGURE).
 		 * Send the message directly to each node. */
@@ -592,7 +592,7 @@ static void _update_wdog_state(thd_t *thread_ptr,
 	}
 }
 
-/*
+/*agent线程会产生这个看门狗线程，发送SIFUSR1杀死超时线程
  * _wdog - Watchdog thread. Send SIGUSR1 to threads which have been active
  *	for too long.
  * IN args - pointer to agent_info_t with info on threads to watch
@@ -914,7 +914,7 @@ static void *_thread_per_group_rpc(void *args)
 	uint32_t job_id;
 
 	xassert(args != NULL);
-	xsignal(SIGUSR1, _sig_handler);
+	xsignal(SIGUSR1, _sig_handler);//可能会收到agent线程的看门狗_wdog线程发过来的SIGUSR1信号
 	xsignal_unblock(sig_array);
 	is_kill_msg = (	(msg_type == REQUEST_KILL_TIMELIMIT)	||
 			(msg_type == REQUEST_KILL_PREEMPTED)	||
@@ -933,18 +933,18 @@ static void *_thread_per_group_rpc(void *args)
 
 	slurm_mutex_lock(thread_mutex_ptr);
 	thread_ptr->state = DSH_ACTIVE;
-	thread_ptr->end_time = thread_ptr->start_time + message_timeout;
+	thread_ptr->end_time = thread_ptr->start_time + message_timeout;//agent_queue_request中创建agent之前设置message_timeout
 	slurm_mutex_unlock(thread_mutex_ptr);
 
 	//将传入的参数转换为msg
 	/* send request message */
-	slurm_msg_t_init(&msg);
+	slurm_msg_t_init(&msg);//msg初始化，接着填充msg结构体
 
 	if (task_ptr->protocol_version)
 		msg.protocol_version = task_ptr->protocol_version;
 
 	msg.msg_type = msg_type;
-	msg.data     = task_ptr->msg_args_ptr;
+	msg.data     = task_ptr->msg_args_ptr;//实际数据
 #if 0
 	info("%s: sending %s to %s", __func__, rpc_num2string(msg_type),
 	     thread_ptr->nodelist);
@@ -953,7 +953,7 @@ static void *_thread_per_group_rpc(void *args)
 		if (thread_ptr->addr) {
 			msg.address = *thread_ptr->addr;
 
-			if (!(ret_list = slurm_send_addr_recv_msgs(
+			if (!(ret_list = slurm_send_addr_recv_msgs(//发送一个消息给msg->address,然后返回包含ret_data_info_t类型的List
 				     &msg, thread_ptr->nodelist, 0))) {
 				error("%s: no ret_list given", __func__);
 				goto cleanup;
@@ -1008,7 +1008,7 @@ static void *_thread_per_group_rpc(void *args)
 	}
 
 	//info("got %d messages back", list_count(ret_list));
-	//解析slurmd返回值
+	//解析slurmd返回值ret_list
 	itr = list_iterator_create(ret_list);
 	while ((ret_data_info = list_next(itr)) != NULL) {
 		rc = slurm_get_return_code(ret_data_info->type,//
@@ -1019,9 +1019,9 @@ static void *_thread_per_group_rpc(void *args)
 			ping_resp = (ping_slurmd_resp_msg_t *)
 				    ret_data_info->data;
 			lock_slurmctld(node_write_lock);
-			reset_node_load(ret_data_info->node_name,
+			reset_node_load(ret_data_info->node_name,//通过ping更新节点负载信息
 					ping_resp->cpu_load);
-			reset_node_free_mem(ret_data_info->node_name,
+			reset_node_free_mem(ret_data_info->node_name,//通过ping更新节点空闲内存信息
 					    ping_resp->free_mem);
 			unlock_slurmctld(node_write_lock);
 		}
@@ -1039,7 +1039,7 @@ static void *_thread_per_group_rpc(void *args)
 			unlock_slurmctld(job_write_lock);
 		}
 
-		/* SPECIAL CASE: Record node's CPU load */
+		/* SPECIAL CASE: Record node's CPU load 节点信息采集*/
 		if (ret_data_info->type == RESPONSE_ACCT_GATHER_UPDATE) {
 			lock_slurmctld(node_write_lock);
 			update_node_record_acct_gather_data(
@@ -1691,7 +1691,7 @@ void agent_queue_request(agent_arg_t *agent_arg_ptr)
 		fatal("AGENT_THREAD_COUNT value is too high relative to MAX_SERVER_THREADS");
 
 	if (message_timeout == NO_VAL16) {
-		message_timeout = MAX(slurm_get_msg_timeout(), 30);
+		message_timeout = MAX(slurm_get_msg_timeout(), 30);//创建agent之前获取一下message_timeout时间
 	}
 
 	if (agent_arg_ptr->msg_type == REQUEST_SHUTDOWN) {

@@ -57,129 +57,110 @@
 #define CONFIG_MAGIC	0xc065eded
 #define NODE_MAGIC	0x0de575ed
 
+//slurm管理节点资源的方式
+//节点配置描述符，对应节点配置文件中的一行，代表具有相同配置的大量节点
 struct config_record {
 	uint32_t magic;		/* magic cookie to test data integrity */
-	uint16_t cpus;		/* count of processors running on the node */
-	char *cpu_spec_list;	/* arbitrary list of specialized cpus */
-	uint16_t boards;	/* count of boards configured */
-	uint16_t sockets;	/* number of sockets per node */
-	uint16_t cores;		/* number of cores per socket */
-	uint16_t core_spec_cnt;	/* number of specialized cores */
-	uint32_t cpu_bind;	/* default CPU binding type */
-	uint16_t threads;	/* number of threads per core */
-	uint64_t mem_spec_limit; /* MB real memory for memory specialization */
-	uint64_t real_memory;	/* MB real memory on the node */
-	uint32_t tmp_disk;	/* MB total storage in TMP_FS file system */
-	double  *tres_weights;	/* array of TRES weights */
-	char    *tres_weights_str; /* per TRES billing weight string */
-	uint32_t weight;	/* arbitrary priority of node for
-				 * scheduling work on */
-	char *feature;		/* arbitrary list of node's features */
-	char *gres;		/* arbitrary list of node's generic resources */
-	char *nodes;		/* name of nodes with this configuration */
-	bitstr_t *node_bitmap;	/* bitmap of nodes with this configuration */
+	uint16_t cpus;		/* 节点上运行的处理器数量	*/
+	char *cpu_spec_list;	/* arbitrary list of specialized cpus 专用cpu的任意列表*/
+	uint16_t boards;	/* 配置的boards数 */
+	uint16_t sockets;	/* 每个节点sockets数 */
+	uint16_t cores;		/* 每个socket的cores数 */
+	uint16_t core_spec_cnt;	/* 专用核心数 */
+	uint32_t cpu_bind;	/* 默认CPU绑定类型 */
+	uint16_t threads;	/* 每个核心threads数 */
+	uint64_t mem_spec_limit; /* MB 实际内存 for memory specialization */
+	uint64_t real_memory;	/* MB 节点上实际内存 */
+	uint32_t tmp_disk;	/* MB tmp_fs文件系统中的总存储空间	*/
+	double  *tres_weights;	/* TRES权重数组 */
+	char    *tres_weights_str; /* 每TRES计费权重字符串	*/
+	uint32_t weight;	/* 用于调度工作的节点的任意优先级	*/
+	char *feature;		/* 节点特性的任意列表	*/
+	char *gres;		/* 节点通用资源的任意列表	*/
+	char *nodes;		/* 具有此配置的节点的名称	*/
+	bitstr_t *node_bitmap;	/* 具有此配置的节点的位图	*/
 };
 extern List config_list;	/* list of config_record entries */
 
 extern List front_end_list;	/* list of slurm_conf_frontend_t entries */
-
+//slurm管理节点资源的方式
+//节点描述符，记录单个节点配置
 struct node_record {
-	uint32_t magic;			/* magic cookie for data integrity */
-	char *name;			/* name of the node. NULL==defunct */
-	uint32_t next_state;		/* state after reboot */
-	char *node_hostname;		/* hostname of the node */
-	uint32_t node_state;		/* enum node_states, ORed with
+	uint32_t magic;			/* magic cookie 用于数据完整性 */
+	char *name;			/* 节点名. NULL==defunct */
+	uint32_t next_state;		/* 重启后状态 */
+	char *node_hostname;		/* 节点hostname */
+	uint32_t node_state;		/* 枚举节点状态 node_states, ORed with
 					 * NODE_STATE_NO_RESPOND if not
 					 * responding */
-	bool not_responding;		/* set if fails to respond,
-					 * clear after logging this */
-	time_t boot_req_time;		/* Time of node boot request */
-	time_t boot_time;		/* Time of node boot,
-					 * computed from up_time */
-	uint32_t cpu_bind;		/* default CPU binding type */
-	time_t slurmd_start_time;	/* Time of slurmd startup */
-	time_t last_response;		/* last response from the node */
-	time_t last_idle;		/* time node last become idle */
-	uint16_t cpus;			/* count of processors on the node */
-	uint16_t boards; 		/* count of boards configured */
-	uint16_t sockets;		/* number of sockets per node */
-	uint16_t cores;			/* number of cores per socket */
-	char *cpu_spec_list;		/* node's specialized cpus */
-	uint16_t core_spec_cnt;		/* number of specialized cores on node*/
-	uint16_t threads;		/* number of threads per core */
+	bool not_responding;		/* 设置该值如果没有响应，日志记录后清除 */
+	time_t boot_req_time;		/* 	节点启动请求的时间	*/
+	time_t boot_time;		/* 节点启动时间,由up_time计算 */
+	uint32_t cpu_bind;		/* 默认 CPU 绑定类型 */
+	time_t slurmd_start_time;	/* slurmd启动时间 */
+	time_t last_response;		/* 节点最后响应时间 */
+	time_t last_idle;		/* 节点最后变空闲时间 */
+	uint16_t cpus;			/* 节点上的处理器数	*/
+	uint16_t boards; 		/* 配置的boards数 */
+	uint16_t sockets;		/* 每个节点sockets数 */
+	uint16_t cores;			/* 每个socket的核心数  */
+	char *cpu_spec_list;		/* node's specialized cpus 	节点的专用cpu*/
+	uint16_t core_spec_cnt;		/* number of specialized cores on node节点的专用cpu数量*/
+	uint16_t threads;		/* 每个核心线程数 */
 	uint64_t real_memory;		/* MB real memory on the node */
 	uint64_t mem_spec_limit;	/* MB memory limit for specialization */
 	uint32_t tmp_disk;		/* MB total disk in TMP_FS */
-	uint32_t up_time;		/* seconds since node boot */
-	struct config_record *config_ptr;  /* configuration spec ptr */
-	uint16_t part_cnt;		/* number of associated partitions */
-	struct part_record **part_pptr;	/* array of pointers to partitions
-					 * associated with this node*/
-	char *comm_name;		/* communications path name to node */
-	uint16_t port;			/* TCP port number of the slurmd */
-	slurm_addr_t slurm_addr;	/* network address */
+	uint32_t up_time;		/* 节点启动后的秒数	*/
+	struct config_record *config_ptr;  /* 配置规格指针，指向节点所属的节点配置文件里面相应行对应的节点配置描述符 */
+	uint16_t part_cnt;		/* 相关分区的数量	*/
+	struct part_record **part_pptr;	/* 指向与此节点关联的分区的指针数组	*/
+	char *comm_name;		/* 节点的通信路径名	*/
+	uint16_t port;			/* slurmd的TCP端口号 */
+	slurm_addr_t slurm_addr;	/* 网络地址 */
 	uint16_t comp_job_cnt;		/* count of jobs completing on node */
-	uint16_t run_job_cnt;		/* count of jobs running on node */
-	uint16_t sus_job_cnt;		/* count of jobs suspended on node */
-	uint16_t no_share_job_cnt;	/* count of jobs running that will
-					 * not share nodes */
-	char *reason; 			/* why a node is DOWN or DRAINING */
-	time_t reason_time;		/* Time stamp when reason was
-					 * set, ignore if no reason is set. */
-	uint32_t reason_uid;		/* User that set the reason, ignore if
-					 * no reason is set. */
-	char *features;			/* node's available features, used only
-					 * for state save/restore, DO NOT
-					 * use for scheduling purposes */
-	char *features_act;		/* node's active features, used only
-					 * for state save/restore, DO NOT
-					 * use for scheduling purposes */
-	char *gres;			/* node's generic resources, used only
-					 * for state save/restore, DO NOT
-					 * use for scheduling purposes */
-	List gres_list;			/* list of gres state info managed by
-					 * plugins */
-	uint64_t sched_weight;		/* Node's weight for scheduling
-					 * purposes. For cons_tres use */
-	uint32_t weight;		/* orignal weight, used only for state
-					 * save/restore, DO NOT use for
-					 * scheduling purposes. */
-	char *arch;			/* computer architecture */
-	char *os;			/* operating system now running */
-	struct node_record *node_next;	/* next entry with same hash index */
-	uint32_t node_rank;		/* Hilbert number based on node name,
-					 * or other sequence number used to
-					 * order nodes by location,
-					 * no need to save/restore */
+	uint16_t run_job_cnt;		/* 节点上运行的作业数	*/
+	uint16_t sus_job_cnt;		/* 节点上挂起的作业数 */
+	uint16_t no_share_job_cnt;	/* 运行中不共享节点的作业数	*/
+	char *reason; 			/* 节点DOWN或者DRAINING的原因 */
+	time_t reason_time;		/* 	设置原因时的时间戳，如果未设置原因，则忽略	*/
+	uint32_t reason_uid;		/* 设置原因的用户，如果没有设置原因，则忽略	*/
+	char *features;			/* 节点的可用功能仅用于状态保存/还原，不用于调度目的	*/
+	char *features_act;		/* 节点的活动特性仅用于状态保存/恢复，不用于调度目的	*/
+	char *gres;			/* 节点的通用资源仅用于状态保存/恢复，不用于调度目的	*/
+	List gres_list;			/* 由插件管理的gres状态信息列表	*/
+	uint64_t sched_weight;		/* 用于调度目的的节点权重。cons_tres使用	*/
+	uint32_t weight;		/* 原始权值，仅用于状态保存/恢复，不用于调度目的。*/
+	char *arch;			/* 计算机体系结构 */
+	char *os;			/* 正在运行的操作系统	*/
+	struct node_record *node_next;	/* 下一个具有相同哈希索引的项	*/
+	uint32_t node_rank;		/* 基于节点名称的希尔伯特数，或用于按位置对节点排序的其他序列号，不需要保存/恢复	*/
 #ifdef HAVE_ALPS_CRAY
 	uint32_t basil_node_id;		/* Cray-XT BASIL node ID,
 					 * no need to save/restore */
 	time_t down_time;		/* When first set to DOWN state */
 #endif	/* HAVE_ALPS_CRAY */
-	acct_gather_energy_t *energy;	/* power consumption data */
-	ext_sensors_data_t *ext_sensors; /* external sensor data */
-	power_mgmt_data_t *power;	/* power management data */
-	dynamic_plugin_data_t *select_nodeinfo; /* opaque data structure,
-						 * use select_g_get_nodeinfo()
-						 * to access contents */
-	uint32_t cpu_load;		/* CPU load * 100 */
-	time_t cpu_load_time;		/* Time when cpu_load last set */
-	uint64_t free_mem;		/* Free memory in MiB */
-	time_t free_mem_time;		/* Time when free_mem last set */
-	uint16_t protocol_version;	/* Slurm version number */
-	char *version;			/* Slurm version */
+	acct_gather_energy_t *energy;	/* 能耗数据	*/
+	ext_sensors_data_t *ext_sensors; /* 外部传感器数据	*/
+	power_mgmt_data_t *power;	/* 电源管理数据	*/
+	dynamic_plugin_data_t *select_nodeinfo; /* 不透明的数据结构，使用select_g_get_nodeinfo()来访问内容 */
+	uint32_t cpu_load;		/* CPU 负载 * 100 */
+	time_t cpu_load_time;		/* cpu_load最后设置的时间 */
+	uint64_t free_mem;		/* 空闲内存 in MiB */
+	time_t free_mem_time;		/* 上次设置free_mem的时间	*/
+	uint16_t protocol_version;	/* Slurm版本号	*/
+	char *version;			/* Slurm版本 */
 	bitstr_t *node_spec_bitmap;	/* node cpu specialization bitmap */
-	uint32_t owner;			/* User allowed to use node or NO_VAL */
-	uint16_t owner_job_cnt;		/* Count of exclusive jobs by "owner" */
-	char *tres_str;                 /* tres this node has */
-	char *tres_fmt_str;		/* tres this node has */
+	uint32_t owner;			/* 允许使用节点的用户或者NO_VAL */
+	uint16_t owner_job_cnt;		/* "owner"的独占作业数 */
+	char *tres_str;                 /* 该节点有的tres, 1=2,2=3690,5=2*/
+	char *tres_fmt_str;		/* 该节点有的tres, cpu=2,mem=3690M,billing=2*/
 	uint64_t *tres_cnt;		/* tres this node has. NO_PACK*/
 	char *mcs_label;		/* mcs_label if mcs plugin in use */
 };
-extern struct node_record *node_record_table_ptr;  /* ptr to node records */
+extern struct node_record *node_record_table_ptr;  /* 链表ptr to node records */
 extern int node_record_count;		/* count in node_record_table_ptr */
-extern xhash_t* node_hash_table;	/* hash table for node records */
-extern time_t last_node_update;		/* time of last node record update */
+extern xhash_t* node_hash_table;	/* 哈希表hash table for node records */
+extern time_t last_node_update;		/* 上次node record更新时间 */
 
 extern uint16_t *cr_node_num_cores;
 extern uint32_t *cr_node_cores_offset;

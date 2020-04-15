@@ -114,8 +114,7 @@ static pthread_mutex_t g_context_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool init_run = false;
 
 /*
- * Initialize the burst buffer infrastructure.
- *
+ * 初始化 burst buffer 基础结构.
  * Returns a Slurm errno.
  */
 extern int bb_g_init(void)
@@ -355,7 +354,8 @@ extern uint64_t bb_g_get_system_size(char *name)
  * Preliminary validation of a job submit request with respect to burst buffer
  * options. Performed after setting default account + qos, but prior to
  * establishing job ID or creating script file.
- *
+ *关于突发缓冲区选项的作业提交请求的初步验证。
+设置默认帐户+ qos后执行，但在建立作业ID或创建脚本文件之前执行。
  * job_desc IN - Job submission request
  * submit_uid IN - ID of the user submitting the job.
  * Returns a Slurm errno.

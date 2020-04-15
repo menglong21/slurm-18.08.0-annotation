@@ -1173,7 +1173,7 @@ static int _attempt_backfill(void)
 	sched_start = orig_sched_start = now = time(NULL);
 	gettimeofday(&start_tv, NULL);
 
-	job_queue = build_job_queue(true, true);
+	job_queue = build_job_queue(true, true);//创建准备调度的作业队列
 	job_test_count = list_count(job_queue);
 	if (job_test_count == 0) {
 		if (debug_flags & DEBUG_FLAG_BACKFILL)
@@ -1256,7 +1256,7 @@ static int _attempt_backfill(void)
 		assoc_mgr_unlock(&qos_read_lock);
 	}
 
-	sort_job_queue(job_queue);
+	sort_job_queue(job_queue);//给准备好的作业调度队列排一下序
 	while (1) {
 		uint32_t bf_job_id, bf_array_task_id, bf_job_priority,
 			prio_reserve;
@@ -2488,7 +2488,7 @@ static int _start_job(struct job_record *job_ptr, bitstr_t *resv_bitmap)
 		job_ptr->details->exc_node_bitmap = bit_copy(resv_bitmap);
 	if (job_ptr->array_recs)
 		is_job_array_head = true;
-	rc = select_nodes(job_ptr, false, NULL, NULL, false);
+	rc = select_nodes(job_ptr, false, NULL, NULL, false);//为作业实际分配节点，重要
 	if (is_job_array_head && job_ptr->details) {
 		struct job_record *base_job_ptr;
 		base_job_ptr = find_job_record(job_ptr->array_job_id);

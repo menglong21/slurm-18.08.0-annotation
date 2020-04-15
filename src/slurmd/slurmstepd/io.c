@@ -1476,7 +1476,7 @@ _io_thr(void *arg)
 
 	/* A SIGHUP signal signals a reattach to the mgr thread.  We need
 	 * to block SIGHUP from being delivered to this thread so the mgr
-	 * thread will see the signal.
+	 * thread will see the signal.处理信号经典操作
 	 */
 	sigemptyset(&set);
 	sigaddset(&set, SIGHUP);
@@ -1484,7 +1484,7 @@ _io_thr(void *arg)
 	pthread_sigmask(SIG_BLOCK, &set, NULL);
 
 	debug("IO handler started pid=%lu", (unsigned long) getpid());
-	rc = eio_handle_mainloop(job->eio);
+	rc = eio_handle_mainloop(job->eio);//EIO重要
 	debug("IO handler exited, rc=%d", rc);
 	return (void *)1;
 }

@@ -1,10 +1,14 @@
 /*****************************************************************************\
- *  node_conf.c - partially manage the node records of slurm
+ *  node_conf.c - partially manage the node records of slurm 部分管理slurm的节点记录 
  *                (see src/slurmctld/node_mgr.c for the set of functionalities
  *                 related to slurmctld usage of nodes)
  *	Note: there is a global node table (node_record_table_ptr), its
  *	hash table (node_hash_table), time stamp (last_node_update) and
  *	configuration list (config_list)
+ *  Slurm管理节点资源的方法：一个全局节点链表node_record_table_ptr，
+ *								它的哈希表node_hash_table，
+ *								时间戳last_node_update，
+ *								配置链表config_list
  *****************************************************************************
  *  Copyright (C) 2002-2007 The Regents of the University of California.
  *  Copyright (C) 2008-2010 Lawrence Livermore National Security.
@@ -73,17 +77,17 @@
 
 #define _DEBUG 0
 
-/* Global variables */
-List config_list  = NULL;	/* list of config_record entries */
+/* 全局变量，slurm管理节点资源的方式 */
+List config_list  = NULL;	/* config_record条目链表，一条config_record条目代表节点配置文件NodeName开头一行，包含具有相同配置的大量节点 */
 List front_end_list = NULL;	/* list of slurm_conf_frontend_t entries */
-time_t last_node_update = (time_t) 0;	/* time of last update */
-struct node_record *node_record_table_ptr = NULL;	/* node records */
-xhash_t* node_hash_table = NULL;
-int node_record_count = 0;		/* count in node_record_table_ptr */
+time_t last_node_update = (time_t) 0;	/* 上次更新时间 */
+struct node_record *node_record_table_ptr = NULL;	/* node records 全部节点记录*/
+xhash_t* node_hash_table = NULL;//记录全部节点的哈希表
+int node_record_count = 0;		/* count in node_record_table_ptr 全部节点计数*/
 uint16_t *cr_node_num_cores = NULL;
 uint32_t *cr_node_cores_offset = NULL;
 
-/* Local function defiitions */
+/* Local function definitions */
 static int	_build_single_nodeline_info(slurm_conf_node_t *node_ptr,
 					    struct config_record *config_ptr);
 static int	_delete_config_record (void);
@@ -204,7 +208,7 @@ static int _build_single_nodeline_info(slurm_conf_node_t *node_ptr,
 	}
 
 	/* now build the individual node structures */
-	while ((alias = hostlist_shift(alias_list))) {
+	while ((alias = hostlist_shift(alias_list))) {//遍历配置文件NodeName开头一行所有节点
 		if (address_count > 0) {
 			address_count--;
 			if (address)
@@ -520,8 +524,7 @@ extern int build_all_frontend_info (bool is_slurmd_context)
 }
 
 /*
- * build_all_nodeline_info - get a array of slurm_conf_node_t structures
- *	from the slurm.conf reader, build table, and set values
+ * build_all_nodeline_info - 从slurm.conf读取器中获得slurm_conf_node_t结构体数组，构建表并设置值
  * IN set_bitmap - if true, set node_bitmap in config record (used by slurmd)
  * IN tres_cnt - number of TRES configured on system (used on controller side)
  * RET 0 if no error, error code otherwise
@@ -537,10 +540,10 @@ extern int build_all_nodeline_info (bool set_bitmap, int tres_cnt)
 	if (count == 0)
 		fatal("No NodeName information available!");
 
-	for (i = 0; i < count; i++) {//遍历节点
+	for (i = 0; i < count; i++) {//遍历配置文件NodeName行记录
 		node = ptr_array[i];
 
-		config_ptr = create_config_record();
+		config_ptr = create_config_record();//每个config_record对应于slurm.conf文件中的NodeName一行，通常描述大量节点的配置。
 		config_ptr->nodes = xstrdup(node->nodenames);
 		config_ptr->cpu_bind = node->cpu_bind;
 		config_ptr->cpus = node->cpus;
@@ -588,10 +591,8 @@ extern int build_all_nodeline_info (bool set_bitmap, int tres_cnt)
 }
 
 /*
- * create_config_record - create a config_record entry and set is values to
- *	the defaults. each config record corresponds to a line in the
- *	slurm.conf file and typically describes the configuration of a
- *	large number of nodes
+ * create_config_record - 创建一个config_record条目，并将值设置为默认值。 
+ * 每个config_record对应于slurm.conf文件中NodeName开头的一行，通常描述大量节点的配置。
  * RET pointer to the config_record
  * NOTE: memory allocated will remain in existence until
  *	_delete_config_record() is called to delete all configuration records
@@ -608,7 +609,7 @@ extern struct config_record * create_config_record (void)
 	config_ptr->node_bitmap = NULL;
 	xassert (config_ptr->magic = CONFIG_MAGIC);  /* set value */
 
-	if (list_append(config_list, config_ptr) == NULL)
+	if (list_append(config_list, config_ptr) == NULL)//添加进全局config_list
 		fatal ("create_config_record: unable to allocate memory");
 
 	return config_ptr;
@@ -616,6 +617,7 @@ extern struct config_record * create_config_record (void)
 
 /*
  * create_node_record - create a node record and set its values to defaults
+ * 创建节点记录并将其值设置为默认值
  * IN config_ptr - pointer to node's configuration information
  * IN node_name - name of the node
  * RET pointer to the record or NULL if error
@@ -642,7 +644,7 @@ extern struct node_record *create_node_record (
 		((int) ((new_buffer_size / BUF_SIZE) + 1)) * BUF_SIZE;
 	if (!node_record_table_ptr) {
 		node_record_table_ptr =
-			(struct node_record *) xmalloc (new_buffer_size);
+			(struct node_record *) xmalloc (new_buffer_size);//node_record_table_ptr是个全局数组
 	} else if (old_buffer_size != new_buffer_size) {
 		xrealloc (node_record_table_ptr, new_buffer_size);
 		/*
@@ -651,14 +653,14 @@ extern struct node_record *create_node_record (
 		 */
 		rehash_node();
 	}
-	node_ptr = node_record_table_ptr + (node_record_count++);
+	node_ptr = node_record_table_ptr + (node_record_count++);//node_ptr指向node_record_table_ptr上面某个节点
 	node_ptr->name = xstrdup(node_name);
 	if (!node_hash_table)
-		node_hash_table = xhash_init(_node_record_hash_identity, NULL);
-	xhash_add(node_hash_table, node_ptr);
+		node_hash_table = xhash_init(_node_record_hash_identity, NULL);//初始化全局节点哈希表node_hash_table
+	xhash_add(node_hash_table, node_ptr);//将node_ptr添加到节点哈希表,重要
 
 	node_ptr->config_ptr = config_ptr;
-	/* these values will be overwritten when the node actually registers */
+	/* 当节点实际注册时，这些值将被覆盖。*/
 	node_ptr->cpus = config_ptr->cpus;
 	node_ptr->cpu_load = NO_VAL;
 	node_ptr->free_mem = NO_VAL64;
@@ -740,7 +742,7 @@ static struct node_record *_find_node_record (char *name, bool test_alias,
 
 	/* try to find via hash table, if it exists */
 	if ((node_ptr =
-	     (struct node_record*) xhash_get(node_hash_table, name))) {
+	     (struct node_record*) xhash_get(node_hash_table, name))) {//根据节点名从哈希表中获取节点描述符
 		xassert(node_ptr->magic == NODE_MAGIC);
 		return node_ptr;
 	}
@@ -794,7 +796,7 @@ extern int init_node_conf (void)
 	if (config_list)	/* delete defunct configuration entries */
 		(void) _delete_config_record ();
 	else {
-		config_list    = list_create (_list_delete_config);
+		config_list    = list_create (_list_delete_config);//创建节点配置链表config_list
 		front_end_list = list_create (destroy_frontend);
 	}
 
@@ -840,7 +842,7 @@ extern int node_name2bitmap (char *node_names, bool best_effort,
 	bitstr_t *my_bitmap;
 	hostlist_t host_list;
 
-	my_bitmap = (bitstr_t *) bit_alloc (node_record_count);
+	my_bitmap = (bitstr_t *) bit_alloc (node_record_count);//分配一个位图
 	*bitmap = my_bitmap;
 
 	if (node_names == NULL) {
@@ -861,7 +863,7 @@ extern int node_name2bitmap (char *node_names, bool best_effort,
 		node_ptr = _find_node_record(this_node_name, best_effort, true);
 		if (node_ptr) {
 			bit_set (my_bitmap, (bitoff_t) (node_ptr -
-							node_record_table_ptr));
+							node_record_table_ptr));//设置对应位
 		} else {
 			error ("node_name2bitmap: invalid node specified %s",
 			       this_node_name);

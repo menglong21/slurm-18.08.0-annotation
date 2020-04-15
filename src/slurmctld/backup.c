@@ -164,20 +164,20 @@ void run_backup(slurm_trigger_callbacks_t *callbacks)
 	ctld_ping = xmalloc(sizeof(ctld_ping_t) * backup_inx);
 	while (slurmctld_config.shutdown_time == 0) {
 		sleep(1);
-		/* Lock of slurmctld_conf below not important */
+		/* 下面的slurmctld_conf锁不重要 */
 		if (slurmctld_conf.slurmctld_timeout &&
 		    (takeover == false) &&
 		    ((time(NULL) - last_ping) <
-		     (slurmctld_conf.slurmctld_timeout / 3)))
+		     (slurmctld_conf.slurmctld_timeout / 3)))//三个条件同时成立，才跳过本循环
 			continue;
 
 		last_ping = time(NULL);
-		if (_ping_controller() == SLURM_SUCCESS)
+		if (_ping_controller() == SLURM_SUCCESS)//Ping所有优先级较高的控制节点,周期为SlurmctldTimeout的三分之一。
 			last_controller_response = time(NULL);
-		else if (takeover) {
+		else if (takeover) {//scontrol takeover
 			/*
 			 * in takeover mode, take control as soon as
-			 * primary no longer respond
+			 * primary no longer respond在接管模式下，一旦主控制器不再响应，就立即控制
 			 */
 			break;
 		} else {
@@ -202,7 +202,7 @@ void run_backup(slurm_trigger_callbacks_t *callbacks)
 			}
 
 			if ((time(NULL) - use_time) >
-			    slurmctld_conf.slurmctld_timeout)
+			    slurmctld_conf.slurmctld_timeout)//如果当前时间减去上次心跳时间超过了SlurmctldTimeout，就进行主备切换
 				break;
 		}
 	}
@@ -498,7 +498,7 @@ static void *_ping_ctld_thread(void *arg)
 	req.msg_type = REQUEST_CONTROL_STATUS;
 	if (slurm_send_recv_node_msg(&req, &resp, 0) == SLURM_SUCCESS) {
 		switch (resp.msg_type) {
-		case RESPONSE_CONTROL_STATUS:
+		case RESPONSE_CONTROL_STATUS://正常
 			control_msg = (control_status_msg_t *) resp.data;
 			if (ping->backup_inx != control_msg->backup_inx) {
 				error("%s: BackupController# index mismatch (%d != %u) from host %s",
@@ -533,7 +533,7 @@ static void *_ping_ctld_thread(void *arg)
 }
 
 /*
- * Ping all higher-priority control nodes.
+ * Ping所有优先级较高的控制节点
  * RET SLURM_SUCCESS if a currently active controller is found
  */
 static int _ping_controller(void)

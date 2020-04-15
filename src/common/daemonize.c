@@ -54,24 +54,26 @@
 
 /*
  * Double-fork and go into background.
- * Caller is responsible for umasks
+ * Caller is responsible for umasks  1.调用该函数之前处理了umask
  */
 int xdaemon(void)
 {
 	int devnull;
-	//第一次fork的作用就是让shell认为这条命令已经终止，不用挂在终端输入上
+	//2.第一次fork的作用就是让shell认为这条命令已经终止，不用挂在终端输入上
 	switch (fork()) {
 		case  0 : break;        /* child *///子进程继续执行
 		case -1 : return -1;
 		default : _exit(0);     /* exit parent *///父进程退出
 	}
-	//创建一个新的Session,并成为Session Leader
+	//3.创建一个新的Session,并成为Session Leader
 	if (setsid() < 0)
 		return -1;
-	//第二次fork不是必须的。目的是防止进程再次打开一个控制终端。
-	//因为打开一个控制终端的前台条件是该进程必须是会话组长。
+	//4. 第二次fork不是必须的。目的是防止进程再次打开一个控制终端。
+	//因为打开一个控制终端的前提条件是该进程必须是会话首进程。
 	//再fork一次，子进程ID != sid（sid是进程父进程的sid）。
-	//所以也无法打开新的控制终端。
+	//所以也无法打开新的控制终端，也不会成为前台进程。
+	//APUE：如果一个进程fork一个子进程，但不要它等待子进程终止，
+	//也不希望子进程处于僵死状态直到父进程终止，实现这一要求的诀窍是调用fork两次。
 	switch (fork()) {
 		case 0 : break;         /* child */
 		case -1: return -1;
@@ -81,7 +83,7 @@ int xdaemon(void)
 	/*
 	 * dup stdin, stdout, and stderr onto /dev/null
 	 */
-	 //将stdin, stdout, and stderr重定向到/dev/null
+	 //5.将stdin, stdout, and stderr重定向到/dev/null
 	devnull = open("/dev/null", O_RDWR);
 	if (devnull < 0)
 		error("Unable to open /dev/null: %m");

@@ -79,7 +79,11 @@ static int
 _sigmask(int how, sigset_t *set, sigset_t *oset)
 {
 	int err;
-
+	//在多线程的程序里，希望只在主线程中处理信号，使用pthread_sigmask
+	//参数how:
+	//SIG_BLOCK:结果集是当前集合参数集的并集；
+	//SIG_UNBLOCK:结果集是当前集合参数集的差集；
+	//SIG_SETMASK:结果集是由参数集指向的集
 	if ((err = pthread_sigmask(how, set, oset)))//线程屏蔽
 		return error ("pthread_sigmask: %s", slurm_strerror(err));
 
@@ -96,11 +100,11 @@ xsignal_sigset_create(int sigarray[], sigset_t *setp)
 {
 	int i = 0, sig;
 
-	if (sigemptyset(setp) < 0)
+	if (sigemptyset(setp) < 0)//将信号集初始化为空
 		error("sigemptyset: %m");
 
 	while ((sig = sigarray[i++])) {
-		if (sigaddset(setp, sig) < 0)
+		if (sigaddset(setp, sig) < 0)//遍历sigarray信号数组，逐个将信号sig添加到信号集set中
 			return error ("sigaddset(%d): %m", sig);
 	}
 
@@ -127,7 +131,7 @@ xsignal_block(int sigarray[])
 
 	xassert(sigarray != NULL);
 
-	if (xsignal_sigset_create(sigarray, &set) < 0)
+	if (xsignal_sigset_create(sigarray, &set) < 0)//将信号数组中的信号逐个添加到set中
 		return SLURM_ERROR;
 
 	return _sigmask(SIG_BLOCK, &set, NULL);

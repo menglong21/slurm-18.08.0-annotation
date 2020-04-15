@@ -110,24 +110,30 @@ main (int argc, char **argv)
 	int rc = 0;
 	char *launch_params;
 
+	//处理命令行参数
 	if (_process_cmdline (argc, argv) < 0)
 		fatal ("Error in slurmstepd command line");
-
+	//设置信号
 	xsignal_block(slurmstepd_blocked_signals);
 	conf = xmalloc(sizeof(*conf));
 	conf->argv = &argv;
 	conf->argc = &argc;
-	init_setproctitle(argc, argv);
+	init_setproctitle(argc, argv);//保存argc, argv
+	//初始化节点选择插件
 	if (slurm_select_init(1) != SLURM_SUCCESS )
 		fatal( "failed to initialize node selection plugin" );
+	//初始化认证插件
 	if (slurm_auth_init(NULL) != SLURM_SUCCESS)
 		fatal( "failed to initialize authentication plugin" );
 
-	/* Receive job parameters from the slurmd */
+	/* 跟slurmd通信，从slurmd接收作业结构体等参数 */
+	//STDIN_FILENO:接收键盘的输入;STDOUT_FILENO：向屏幕输出
 	_init_from_slurmd(STDIN_FILENO, argv, &cli, &self, &msg);
 
 	/* Create the stepd_step_rec_t, mostly from info in a
 	 * launch_tasks_request_msg_t or a batch_job_launch_msg_t */
+	//创建stepd_step_rec_t，主要来自launch_tasks_request_msg_t中的信息
+	//或 batch_job_launch_msg_t
 	if (!(job = _step_setup(cli, self, msg))) {
 		_send_fail_to_slurmd(STDOUT_FILENO);
 		rc = SLURM_FAILURE;
@@ -136,10 +142,12 @@ main (int argc, char **argv)
 
 	/* fork handlers cause mutexes on some global data structures
 	 * to be re-initialized after the fork. */
-	list_install_fork_handlers();
-	slurm_conf_install_fork_handlers();
+	 //fork处理程序导致某些全局数据结构上的互斥锁在fork之后重新初始化。
+	list_install_fork_handlers();//list_free_lock
+	slurm_conf_install_fork_handlers();//conf_lock
 
 	/* sets job->msg_handle and job->msgid */
+	//创建线程处理消息，REACTOR模式
 	if (msg_thr_create(job) == SLURM_ERROR) {
 		_send_fail_to_slurmd(STDOUT_FILENO);
 		rc = SLURM_FAILURE;
@@ -153,9 +161,12 @@ main (int argc, char **argv)
 	 * had been swapped out before upgrade happened it could easily lead
 	 * to SIGBUS at any time after upgrade. Avoid that by locking it
 	 * in-memory. */
+	 //slurmstepd是唯一能够在升级后继续使用的守护进程。
+	 //如果在升级之前已经换掉它，升级后的任何时候都很容易导致SIGBUS。
+	 //通过将其锁定在内存中来避免这种情况。
 	launch_params = slurm_get_launch_params();
 	if (launch_params && strstr(launch_params, "slurmstepd_memlock")) {
-#ifdef _POSIX_MEMLOCK
+#ifdef _POSIX_MEMLOCK//进程存储区加锁
 		int flags = MCL_CURRENT;
 		if (strstr(launch_params, "slurmstepd_memlock_all"))
 			flags |= MCL_FUTURE;
@@ -171,6 +182,7 @@ main (int argc, char **argv)
 
 	/* This does most of the stdio setup, then launches all the tasks,
 	 * and blocks until the step is complete */
+	//这将完成大部分stdio设置，然后启动所有任务，并阻塞直到该步骤完成。分布式？
 	rc = job_manager(job);
 
 	return stepd_cleanup(msg, job, cli, self, rc, 0);
@@ -581,14 +593,14 @@ _init_from_slurmd(int sock, char **argv,
 	/* get the protocol version of the srun */
 	safe_read(sock, &proto, sizeof(uint16_t));
 
-	/* receive req from slurmd */
+	/* 从slurmd接受作业结构体req */
 	safe_read(sock, &len, sizeof(int));
 	incoming_buffer = xmalloc(sizeof(char) * len);
 	safe_read(sock, incoming_buffer, len);
 	buffer = create_buf(incoming_buffer,len);
 
 	msg = xmalloc(sizeof(slurm_msg_t));
-	slurm_msg_t_init(msg);
+	slurm_msg_t_init(msg);//初始化msg
 	/* Always unpack as the current version. */
 	msg->protocol_version = SLURM_PROTOCOL_VERSION;
 
@@ -603,7 +615,7 @@ _init_from_slurmd(int sock, char **argv,
 		fatal("%s: Unrecognized launch RPC (%d)", __func__, step_type);
 		break;
 	}
-	if (unpack_msg(msg, buffer) == SLURM_ERROR)
+	if (unpack_msg(msg, buffer) == SLURM_ERROR)//作业结构体req转换为msg
 		fatal("slurmstepd: we didn't unpack the request correctly");
 	free_buf(buffer);
 

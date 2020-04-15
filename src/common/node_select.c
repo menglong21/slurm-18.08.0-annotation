@@ -464,7 +464,7 @@ extern bool select_g_node_ranking(struct node_record *node_ptr, int node_cnt)
 }
 
 /*
- * Note re/initialization of node record data structure
+ * Note re/initialization of node record data structure重新/初始化节点记录数据结构
  * IN node_ptr - current node data
  * IN node_count - number of node entries
  */

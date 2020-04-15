@@ -465,7 +465,7 @@ bit_nffs(bitstr_t *b, int32_t n)
 }
 
 /*
- * Find first bit set in b.
+ * Find first bit set in b.找出b中的第一个位
  *   b (IN)		bitstring to search
  *   RETURN 		resulting bit position (-1 if none found)
  */
@@ -504,7 +504,7 @@ bit_ffs(bitstr_t *b)
 }
 
 /*
- * Find last bit set in b.
+ * Find last bit set in b.找出b中的最后一个位
  *   b (IN)		bitstring to search
  *   RETURN 		resulting bit position (-1 if none found)
  */
@@ -654,7 +654,7 @@ void bit_and_not(bitstr_t *b1, bitstr_t *b2)
 }
 
 /*
- * b1 = ~b1		one's complement
+ * b1 = ~b1		one's complement二进制反码
  *   b1 (IN/OUT)	first bitmap
  */
 void
@@ -743,7 +743,7 @@ bit_copybits(bitstr_t *dest, bitstr_t *src)
 #else
 /*
  * Returns the hamming weight (i.e. the number of bits set) in a word.
- * NOTE: This routine borrowed from Linux 4.9 <tools/lib/hweight.c>.
+ * NOTE: 这个程序借鉴了 Linux 4.9 <tools/lib/hweight.c>.
  */
 static uint64_t
 hweight(uint64_t w)

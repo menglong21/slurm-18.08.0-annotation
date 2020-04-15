@@ -72,7 +72,7 @@ extern int fsync_and_close(int fd, char *file_type)
 	/* Slurm state save files are typically stored on shared filesystems,
 	 * so lets give fysync() three tries to sync the data to disk. */
 	for (retval = 1, pos = 1; retval && pos < 4; pos++) {
-		retval = fsync(fd);
+		retval = fsync(fd);//同步内存中所有已修改的文件数据到储存设备
 		if (retval && (errno != EINTR)) {
 			error("fsync() error writing %s state save file: %m",
 			      file_type);

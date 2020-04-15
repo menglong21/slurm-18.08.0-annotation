@@ -176,7 +176,7 @@
 #endif
 
 /*
- * Slurm Message types
+ * Slurm Message types消息类型
  *
  * IMPORTANT: ADD NEW MESSAGE TYPES TO THE *END* OF ONE OF THESE NUMBERED
  * SECTIONS. ADDING ONE ELSEWHERE WOULD SHIFT THE VALUES OF EXISTING MESSAGE
@@ -1241,7 +1241,7 @@ typedef struct slurm_node_registration_status_msg {
 	uint32_t hash_val;      /* hash value of slurm.conf and included files
 				 * existing on node */
 	uint32_t job_count;	/* number of associate job_id's */
-	uint32_t *job_id;	/* IDs of running job (if any) */
+	uint32_t *job_id;	/* 节点上运行的所有作业IDs */
 	char *node_name;
 	uint16_t boards;
 	char *os;
@@ -1610,12 +1610,13 @@ extern void print_multi_line_string(char *user_msg, int inx);
  */
 extern char *rpc_num2string(uint16_t opcode);
 
+//这两个宏写得好
 #define safe_read(fd, buf, size) do {					\
 		int remaining = size;					\
 		char *ptr = (char *) buf;				\
 		int rc;							\
 		while (remaining > 0) {					\
-			rc = read(fd, ptr, remaining);			\
+			rc = read(fd, ptr, remaining);//读			\
 			if ((rc == 0) && (remaining == size)) {		\
 				debug("%s:%d: %s: safe_read EOF",	\
 				      __FILE__, __LINE__, __func__); \
@@ -1631,8 +1632,8 @@ extern char *rpc_num2string(uint16_t opcode);
 				      remaining, (int)size);		\
 				goto rwfail;				\
 			} else {					\
-				ptr += rc;				\
-				remaining -= rc;			\
+				ptr += rc;//移动指针				\
+				remaining -= rc;//调整计数			\
 				if (remaining > 0)			\
 					debug3("%s:%d: %s: safe_read (%d of %d) partial read", \
 					       __FILE__, __LINE__, __func__, \
@@ -1646,15 +1647,15 @@ extern char *rpc_num2string(uint16_t opcode);
 		char *ptr = (char *) buf;				\
 		int rc;							\
 		while(remaining > 0) {					\
-			rc = write(fd, ptr, remaining);			\
+			rc = write(fd, ptr, remaining);	//写		\
  			if (rc < 0) {					\
 				debug("%s:%d: %s: safe_write (%d of %d) failed: %m", \
 				      __FILE__, __LINE__, __func__, \
 				      remaining, (int)size);		\
 				goto rwfail;				\
 			} else {					\
-				ptr += rc;				\
-				remaining -= rc;			\
+				ptr += rc;//移动指针				\
+				remaining -= rc;//调整计数			\
 				if (remaining > 0)			\
 					debug3("%s:%d: %s: safe_write (%d of %d) partial write", \
 					       __FILE__, __LINE__, __func__, \

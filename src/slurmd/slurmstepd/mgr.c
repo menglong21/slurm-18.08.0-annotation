@@ -1087,7 +1087,7 @@ static int _spawn_job_container(stepd_step_rec_t *job)
 			 * work, it will not keep a process named "slurmstepd"
 			 */
 
-			execl(SLEEP_CMD, "sleep", "100000000", NULL);
+			execl(SLEEP_CMD, "sleep", "100000000", NULL);//pstree中那个sleep进程就是这个，man slurm.conf ProctrackType
 			error("execl: %m");
 			sleep(1);
 			exit(0);
@@ -1222,7 +1222,7 @@ fail1:
  * Executes the functions of the slurmd job manager process,
  * which runs as root and performs shared memory and interconnect
  * initialization, etc.
- *
+ * 以root身份运行的函数，它执行共享内存和互连初始化
  * Returns 0 if job ran and completed successfully.
  * Returns errno if job startup failed. NOTE: This will DRAIN the node.
  */
@@ -1248,17 +1248,18 @@ job_manager(stepd_step_rec_t *job)
 	 * Preload all plugins afterwards to avoid plugin changes
 	 * (i.e. due to a Slurm upgrade) after the process starts.
 	 */
+	 //初始化各种插件
 	if ((acct_gather_conf_init() != SLURM_SUCCESS)          ||
 	    (core_spec_g_init() != SLURM_SUCCESS)		||
 	    (switch_init(1) != SLURM_SUCCESS)			||
-	    (slurm_proctrack_init() != SLURM_SUCCESS)		||
-	    (slurmd_task_init() != SLURM_SUCCESS)		||
+	    (slurm_proctrack_init() != SLURM_SUCCESS)		||//proctrack/cgroup、 proctrack/linuxproc
+	    (slurmd_task_init() != SLURM_SUCCESS)		||//task/affinity 、task/cgroup 
 	    (checkpoint_init(ckpt_type) != SLURM_SUCCESS)	||
 	    (jobacct_gather_init() != SLURM_SUCCESS)		||
 	    (acct_gather_profile_init() != SLURM_SUCCESS)	||
 	    (slurm_crypto_init() != SLURM_SUCCESS)		||
 	    (job_container_init() != SLURM_SUCCESS)		||
-	    (gres_plugin_init() != SLURM_SUCCESS)) {
+	    (gres_plugin_init() != SLURM_SUCCESS)) {//gpu、dcu
 		rc = SLURM_PLUGIN_NAME_INVALID;
 		goto fail1;
 	}
@@ -1282,7 +1283,7 @@ job_manager(stepd_step_rec_t *job)
 	}
 
 	if (job->stepid == SLURM_EXTERN_CONT)
-		return _spawn_job_container(job);
+		return _spawn_job_container(job);//产生新的作业容器
 
 	if (!job->batch && job->accel_bind_type) {
 		(void) gres_plugin_node_config_load(conf->cpus, conf->node_name,
@@ -1383,7 +1384,7 @@ job_manager(stepd_step_rec_t *job)
 	/* Calls pam_setup() and requires pam_finish() if
 	 * successful.  Only check for < 0 here since other slurm
 	 * error codes could come that are more descriptive. */
-	if ((rc = _fork_all_tasks(job, &io_initialized)) < 0) {
+	if ((rc = _fork_all_tasks(job, &io_initialized)) < 0) {//重要
 		debug("_fork_all_tasks failed");
 		rc = ESLURMD_EXECVE_FAILED;
 		goto fail3;
@@ -1761,7 +1762,7 @@ _fork_all_tasks(stepd_step_rec_t *job, bool *io_initialized)
 	if (job->flags & LAUNCH_USER_MANAGED_IO)
 		rc = _setup_user_managed_io(job);
 	else
-		rc = _setup_normal_io(job);
+		rc = _setup_normal_io(job);//设置normal IO
 	/*
 	 * Initialize log facility to copy errors back to srun
 	 */

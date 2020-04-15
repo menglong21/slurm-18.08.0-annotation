@@ -92,7 +92,7 @@ typedef enum {
 	FEATURE_MODE_PEND, /* Print any pending change message */
 } feature_mode_t;
 
-/* Global variables */
+/* 全局变量，重要，Slurm管理节点资源方式 */
 bitstr_t *avail_node_bitmap = NULL;	/* bitmap of available nodes */
 bitstr_t *booting_node_bitmap = NULL;	/* bitmap of booting nodes */
 bitstr_t *cg_node_bitmap    = NULL;	/* bitmap of completing nodes */
@@ -2359,6 +2359,7 @@ static void _split_node_config(struct node_record *node_ptr,
 /*
  * validate_node_specs - validate the node's specifications as valid,
  *	if not set state to down, in any case update last_response
+ * 验证节点的规范是否有效，如果没有将状态设置为down，则在任何情况下更新last_response
  * IN reg_msg - node registration message
  * IN protocol_version - Version of Slurm on this node
  * OUT newly_up - set if node newly brought into service
@@ -2385,13 +2386,13 @@ extern int validate_node_specs(slurm_node_registration_status_msg_t *reg_msg,
 
 	xassert(verify_lock(CONF_LOCK, READ_LOCK));
 
-	node_ptr = find_node_record(reg_msg->node_name);
+	node_ptr = find_node_record(reg_msg->node_name);//1.根据节点名从全局节点哈希表中获取节点描述符
 	if (node_ptr == NULL)
 		return ENOENT;
-	node_inx = node_ptr - node_record_table_ptr;
-	orig_node_avail = bit_test(avail_node_bitmap, node_inx);
+	node_inx = node_ptr - node_record_table_ptr;//计算节点索引值
+	orig_node_avail = bit_test(avail_node_bitmap, node_inx);//测试节点索引值对应的位是否在可用节点位图中设置
 
-	config_ptr = node_ptr->config_ptr;
+	config_ptr = node_ptr->config_ptr;//获取节点配置描述符
 	error_code = SLURM_SUCCESS;
 
 	node_ptr->protocol_version = protocol_version;
@@ -2404,8 +2405,9 @@ extern int validate_node_specs(slurm_node_registration_status_msg_t *reg_msg,
 		debug("Still waiting for boot of node %s", node_ptr->name);
 		return SLURM_SUCCESS;
 	}
-	bit_clear(booting_node_bitmap, node_inx);
+	bit_clear(booting_node_bitmap, node_inx);//在booting_node_bitmap中移除相应位
 
+	//2.下面大部分代码是根据slurmd注册时发过来的节点信息更新全局链表中对应节点描述符node_ptr中信息
 	if (cr_flag == NO_VAL) {
 		cr_flag = 0;  /* call is no-op for select/linear and others */
 		if (select_g_get_info_from_plugin(SELECT_CR_PLUGIN,
@@ -2636,7 +2638,7 @@ extern int validate_node_specs(slurm_node_registration_status_msg_t *reg_msg,
 		if (node_ptr->threads)
 			node_ptr->core_spec_cnt /= node_ptr->threads;
 		xfree(cpu_spec_array);
-		if (_build_node_spec_bitmap(node_ptr) != SLURM_SUCCESS)
+		if (_build_node_spec_bitmap(node_ptr) != SLURM_SUCCESS)//构建节点spec位图
 			error_code = EINVAL;
 	}
 
@@ -2691,7 +2693,7 @@ extern int validate_node_specs(slurm_node_registration_status_msg_t *reg_msg,
 	    !IS_NODE_UNKNOWN(node_ptr)) {	/* Node just rebooted */
 		(void) node_features_g_get_node(node_ptr->name);
 	}
-
+	//根据节点状态执行不同操作
 	if (error_code) {
 		if (!IS_NODE_DOWN(node_ptr)
 			&& !IS_NODE_DRAIN(node_ptr)
@@ -3695,11 +3697,11 @@ void msg_to_slurmd (slurm_msg_type_t msg_type)
 extern void make_node_alloc(struct node_record *node_ptr,
 			    struct job_record *job_ptr)
 {
-	int inx = node_ptr - node_record_table_ptr;
+	int inx = node_ptr - node_record_table_ptr;//找到节点索引值
 	uint32_t node_flags;
 
 	(node_ptr->run_job_cnt)++;
-	bit_clear(idle_node_bitmap, inx);
+	bit_clear(idle_node_bitmap, inx);//从idle_node_bitmap中移除该节点
 	if (job_ptr->details && (job_ptr->details->share_res == 0)) {
 		bit_clear(share_node_bitmap, inx);
 		(node_ptr->no_share_job_cnt)++;
@@ -3719,7 +3721,7 @@ extern void make_node_alloc(struct node_record *node_ptr,
 	}
 
 	node_flags = node_ptr->node_state & NODE_STATE_FLAGS;
-	node_ptr->node_state = NODE_STATE_ALLOCATED | node_flags;
+	node_ptr->node_state = NODE_STATE_ALLOCATED | node_flags;//设置节点已经分配状态
 	xfree(node_ptr->reason);
 	node_ptr->reason_time = 0;
 	node_ptr->reason_uid = NO_VAL;

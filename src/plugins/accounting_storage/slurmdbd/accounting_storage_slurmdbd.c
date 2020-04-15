@@ -503,7 +503,7 @@ extern int fini ( void )
 
 	slurm_mutex_lock(&db_inx_lock);
 
-	/* signal the db_inx thread */
+	/* signal the db_inx thread 给等待的db_inx线程发信号*/
 	if (db_inx_handler_thread)
 		slurm_cond_signal(&db_inx_cond);
 

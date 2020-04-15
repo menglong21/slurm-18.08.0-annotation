@@ -138,9 +138,9 @@ extern int slurm_preempt_init(void)
 	char *plugin_type = "preempt";
 	char *type = NULL;
 
-	/* This function is called frequently, so it should be as fast as
-	 * possible. The test below will be true almost all of the time and
-	 * is as fast as possible. */
+	/* 	这个函数经常被调用，所以应该尽可能快。
+	 *  下面的测试几乎总是正确的，并且尽可能快。	
+	*/
 	if (init_run && g_context)
 		return retval;
 

@@ -81,17 +81,17 @@ struct part_res_record {
 	struct part_row_data *row;	/* array of rows containing jobs */
 };
 
-/* per-node resource data */
+/* 每节点资源数据，Slurm管理资源的方式之一 */
+/* select插件中使用 */
 struct node_res_record {
-	struct node_record *node_ptr;	/* ptr to the actual node */
-	uint16_t cpus;			/* count of processors configured */
-	uint16_t boards; 		/* count of boards configured */
-	uint16_t sockets;		/* count of sockets configured */
-	uint16_t cores;			/* count of cores configured */
-	uint16_t threads;		/* count of hyperthreads per core */
-	uint16_t vpus;			/* count of virtual cpus (hyperthreads)
-					 * configured per core */
-	uint64_t real_memory;		/* MB of real memory configured */
+	struct node_record *node_ptr;	/* 实际节点的指针 */
+	uint16_t cpus;			/* 配置的处理器数量	*/
+	uint16_t boards; 		/* 配置的boards数量 */
+	uint16_t sockets;		/* 配置的sockets数量 */
+	uint16_t cores;			/* 配置的cores数量 */
+	uint16_t threads;		/* 每个核心的超线程数 */
+	uint16_t vpus;			/* 每个核心配置的虚拟cpu（超线程）计数,如果没有超线程则为1 	*/
+	uint64_t real_memory;		/* 配置了MB的实际内存	*/
 	uint64_t mem_spec_limit;	/* MB of specialized/system memory */
 };
 

@@ -88,8 +88,8 @@ extern int slurm_sched_init(void)
 	if ( g_context )
 		goto done;
 
-	type = slurm_get_sched_type();
-	g_context = plugin_context_create(
+	type = slurm_get_sched_type();//根据配置文件获取调度插件类型
+	g_context = plugin_context_create(//获取调度插件上下文
 		plugin_type, type, (void **)&ops, syms, sizeof(syms));
 
 	if (!g_context) {

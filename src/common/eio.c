@@ -325,14 +325,14 @@ int eio_handle_mainloop(eio_handle_t *eio)
 		slurm_mutex_lock(&eio->shutdown_mutex);
 		shutdown_time = eio->shutdown_time;
 		slurm_mutex_unlock(&eio->shutdown_mutex);
-		if (_poll_internal(pollfds, nfds, shutdown_time) < 0)
+		if (_poll_internal(pollfds, nfds, shutdown_time) < 0)//IO多路复用，同步事件分离器
 			goto error;
 
 		/* See if we've been told to shut down by eio_signal_shutdown */
 		if (pollfds[nfds-1].revents & POLLIN)
 			_eio_wakeup_handler(eio);
 
-		_poll_dispatch(pollfds, nfds - 1, map, eio->obj_list);
+		_poll_dispatch(pollfds, nfds - 1, map, eio->obj_list);//事件分发器
 
 		slurm_mutex_lock(&eio->shutdown_mutex);
 		shutdown_time = eio->shutdown_time;
@@ -442,9 +442,9 @@ _poll_dispatch(struct pollfd *pfds, unsigned int nfds, eio_obj_t *map[],
 {
 	int i;
 
-	for (i = 0; i < nfds; i++) {
+	for (i = 0; i < nfds; i++) {//遍历
 		if (pfds[i].revents > 0)
-			_poll_handle_event(pfds[i].revents, map[i], objList);
+			_poll_handle_event(pfds[i].revents, map[i], objList);//调用
 	}
 }
 
@@ -458,7 +458,7 @@ _poll_handle_event(short revents, eio_obj_t *obj, List objList)
 		if (obj->ops->handle_error) {
 			(*obj->ops->handle_error) (obj, objList);
 		} else if (obj->ops->handle_read) {
-			(*obj->ops->handle_read) (obj, objList);
+			(*obj->ops->handle_read) (obj, objList);//_msg_socket_accept
 		} else if (obj->ops->handle_write) {
 			(*obj->ops->handle_write) (obj, objList);
 		} else {
@@ -475,7 +475,7 @@ _poll_handle_event(short revents, eio_obj_t *obj, List objList)
 			(*obj->ops->handle_close) (obj, objList);
 		} else if (obj->ops->handle_read) {
 			if (!read_called) {
-				(*obj->ops->handle_read) (obj, objList);
+				(*obj->ops->handle_read) (obj, objList);//_msg_socket_accept
 				read_called = true;
 			}
 		} else if (obj->ops->handle_write) {
@@ -492,7 +492,7 @@ _poll_handle_event(short revents, eio_obj_t *obj, List objList)
 	if (revents & POLLIN) {
 		if (obj->ops->handle_read) {
 			if (!read_called) {
-				(*obj->ops->handle_read ) (obj, objList);
+				(*obj->ops->handle_read ) (obj, objList);//_msg_socket_accept
 			}
 		} else {
 			debug("No handler for POLLIN");

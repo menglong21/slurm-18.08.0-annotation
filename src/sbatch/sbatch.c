@@ -181,7 +181,7 @@ int main(int argc, char **argv)
 		_set_spank_env();
 		_set_submit_dir_env();
 		_set_umask_env();
-		if (local_env && !job_env_list) {
+		if (local_env && !job_env_list) {  //因为local_env初始化为NULL，故该条件不成立
 			job_env_list = list_create(NULL);
 			list_append(job_env_list, local_env);
 			job_req_list = list_create(NULL);

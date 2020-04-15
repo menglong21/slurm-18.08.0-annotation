@@ -88,7 +88,7 @@ static int _slurm_connect(int __fd, struct sockaddr const * __addr,
  ****************************************************************/
 
 /*
- * Return time in msec since "start time"
+ * Return time in msec since "start time"计算时间差
  */
 static int _tot_wait (struct timeval *start_time)
 {
@@ -328,14 +328,14 @@ extern int slurm_recv_timeout(int fd, char *buffer, size_t size,
 	while (recvlen < size) {
 		timeleft = timeout - _tot_wait(&tstart);//剩余时间递减
 		if (timeleft <= 0) {
-			debug("%s at %d of %zu, timeout", __func__, recvlen,
+			debug("%s at %d of %zu, timeout", __func__, recvlen,//有log:slurm_recv_timeout at 0 of 4, timeout
 			      size);
 			slurm_seterrno(SLURM_PROTOCOL_SOCKET_IMPL_TIMEOUT);
 			recvlen = SLURM_ERROR;
 			goto done;
 		}
 
-		if ((rc = poll(&ufds, 1, timeleft)) <= 0) {//使用poll实现IO复用，没有输入则阻塞
+		if ((rc = poll(&ufds, 1, timeleft)) <= 0) {//使用poll实现IO复用，前面设置了非阻塞
 			if ((errno == EINTR) || (errno == EAGAIN) || (rc == 0))
 				continue;
 			else {

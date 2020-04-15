@@ -519,6 +519,7 @@ static void _setup_cluster_tres_usage(mysql_conn_t *mysql_conn,
 
 	/* sanity check to make sure we don't have more
 	   allocated cpus than possible. */
+	//健全性检查，以确保我们没有分配的CPU过多。
 	if (loc_tres->total_time
 	    && (loc_tres->total_time < loc_tres->time_alloc)) {
 		slurm_make_time_str(&curr_start, start_char,
@@ -539,6 +540,7 @@ static void _setup_cluster_tres_usage(mysql_conn_t *mysql_conn,
 
 	/* Make sure the total time we care about
 	   doesn't go over the limit */
+	//确保我们关心的总时间不超过限制	
 	if (loc_tres->total_time && (loc_tres->total_time < total_used)) {
 		int64_t overtime;
 
@@ -811,7 +813,7 @@ static local_cluster_usage_t *_setup_cluster_usage(mysql_conn_t *mysql_conn,
 	 * except things with the maintainance flag set in the
 	 * state.  We handle those later with the reservations.
 	 */
-	query = xstrdup_printf("select %s from \"%s_%s\" where "
+	query = xstrdup_printf("select %s from \"%s_%s\" where "//1.拼sql语句，准备从event表里查数据
 			       "!(state & %d) && (time_start < %ld "
 			       "&& (time_end >= %ld "
 			       "|| time_end = 0)) "
@@ -823,7 +825,7 @@ static local_cluster_usage_t *_setup_cluster_usage(mysql_conn_t *mysql_conn,
 
 	if (debug_flags & DEBUG_FLAG_DB_USAGE)
 		DB_DEBUG(mysql_conn->conn, "query\n%s", query);
-	if (!(result = mysql_db_query_ret(mysql_conn, query, 0))) {
+	if (!(result = mysql_db_query_ret(mysql_conn, query, 0))) {//2.执行查询
 		xfree(query);
 		return NULL;
 	}
@@ -831,7 +833,7 @@ static local_cluster_usage_t *_setup_cluster_usage(mysql_conn_t *mysql_conn,
 	xfree(query);
 
 	d_itr = list_iterator_create(cluster_down_list);
-	while ((row = mysql_fetch_row(result))) {
+	while ((row = mysql_fetch_row(result))) {//3.解析返回结果
 		time_t row_start = slurm_atoul(row[EVENT_REQ_START]);
 		time_t row_end = slurm_atoul(row[EVENT_REQ_END]);
 		uint16_t state = slurm_atoul(row[EVENT_REQ_STATE]);
@@ -846,7 +848,7 @@ static local_cluster_usage_t *_setup_cluster_usage(mysql_conn_t *mysql_conn,
 		/* Don't worry about it if the time is less
 		 * than 1 second.
 		 */
-		if ((seconds = (row_end - row_start)) < 1)
+		if ((seconds = (row_end - row_start)) < 1)//计算时间差
 			continue;
 
 		/* this means we are a cluster registration

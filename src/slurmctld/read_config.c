@@ -175,7 +175,7 @@ static void _stat_slurm_dirs(void)
 }
 
 /*
- * _reorder_nodes_by_name - order node table in ascending order of name
+ * _reorder_nodes_by_name - 按名称升序排列的节点表，这个算法可以优化
  */
 static void _reorder_nodes_by_name(void)
 {
@@ -260,7 +260,7 @@ static void _reorder_nodes_by_rank(void)
 
 /*
  * _build_bitmaps_pre_select - recover some state for jobs and nodes prior to
- *	calling the select_* functions
+ *	calling the select_* functions在调用select_ *函数之前恢复作业和节点的某些状态
  */
 static void _build_bitmaps_pre_select(void)
 {
@@ -284,7 +284,7 @@ static void _build_bitmaps_pre_select(void)
 	for (i = 0, node_ptr = node_record_table_ptr;
 	     i < node_record_count; i++, node_ptr++) {
 		if (node_ptr->config_ptr)
-			bit_set(node_ptr->config_ptr->node_bitmap, i);
+			bit_set(node_ptr->config_ptr->node_bitmap, i);//设置节点配置结构中节点位图相应位
 	}
 
 	return;
@@ -553,7 +553,7 @@ static int _build_all_nodeline_info(void)
 	int rc, rc2;
 
 	/* Load the node table here */
-	rc = build_all_nodeline_info(false, slurmctld_tres_cnt);
+	rc = build_all_nodeline_info(false, slurmctld_tres_cnt);//未创建节点位图
 	rc2 = build_all_frontend_info(false);
 	rc = MAX(rc, rc2);
 
@@ -1114,8 +1114,9 @@ int read_slurm_conf(int recover, bool reconfig)
 		}
 	}
 
-	/* Build node and partition information based upon slurm.conf file */
-	_build_all_nodeline_info();
+	/* 根据slurm.conf文件构建节点和分区信息，重要 */
+	
+	_build_all_nodeline_info();//节点
 	if (reconfig) {
 		if (_compare_hostnames(old_node_table_ptr,
 				       old_node_record_count,
@@ -1125,7 +1126,7 @@ int read_slurm_conf(int recover, bool reconfig)
 		}
 	}
 	_handle_all_downnodes();
-	_build_all_partitionline_info();
+	_build_all_partitionline_info();//分区
 	if (!reconfig) {
 		restore_front_end_state(recover);
 
@@ -1140,7 +1141,7 @@ int read_slurm_conf(int recover, bool reconfig)
 			dump_config_state_lite();
 	}
 	update_logging();
-	g_slurm_jobcomp_init(slurmctld_conf.job_comp_loc);
+	g_slurm_jobcomp_init(slurmctld_conf.job_comp_loc);//初始化作业完成插件
 	if (slurm_sched_init() != SLURM_SUCCESS) {
 		if (test_config) {
 			error("Failed to initialize sched plugin");
@@ -1178,16 +1179,18 @@ int read_slurm_conf(int recover, bool reconfig)
 	 * Node reordering needs to be done by the topology and/or select
 	 * plugin. Reordering the table must be done before hashing the
 	 * nodes, and before any position-relative bitmaps are created.
+	 * 节点重新排序需要通过拓扑和/或选择插件来完成。 
+	 * 必须在对节点进行散列之前以及在创建任何位置相对位图之前对表进行重新排序。
 	 */
 	do_reorder_nodes |= slurm_topo_generate_node_ranking();
 	do_reorder_nodes |= select_g_node_ranking(node_record_table_ptr,
-						  node_record_count);
+						  node_record_count);//总是false
 	if (do_reorder_nodes)
 		_reorder_nodes_by_rank();
 	else
 		_reorder_nodes_by_name();
 
-	rehash_node();
+	rehash_node();//重建节点哈希表
 	slurm_topo_build_config();
 	route_g_reconfigure();
 	if (reconfig)
@@ -1251,7 +1254,7 @@ int read_slurm_conf(int recover, bool reconfig)
 		reset_first_job_id();
 		(void) slurm_sched_g_reconfig();
 	} else if (recover == 1) {	/* Load job & node state files */
-		(void) load_all_node_state(true);
+		(void) load_all_node_state(true);//从状态保存目录加载节点状态
 		_set_features(node_record_table_ptr, node_record_count,
 			      recover);
 		(void) load_all_front_end_state(true);
@@ -1268,8 +1271,8 @@ int read_slurm_conf(int recover, bool reconfig)
 	}
 
 	_sync_part_prio();
-	_build_bitmaps_pre_select();
-	if ((select_g_node_init(node_record_table_ptr, node_record_count)
+	_build_bitmaps_pre_select();//设置分区链表和节点配置链表中对应节点位图
+	if ((select_g_node_init(node_record_table_ptr, node_record_count)//通过资源选择select插件重新/初始化全局#节点记录数据结构
 	     != SLURM_SUCCESS)						||
 	    (select_g_block_init(part_list) != SLURM_SUCCESS)		||
 	    (select_g_state_restore(state_save_dir) != SLURM_SUCCESS)	||
@@ -1322,7 +1325,7 @@ int read_slurm_conf(int recover, bool reconfig)
 	 * _build_bitmaps() must follow node_features_g_get_node() and
 	 * preceed build_features_list_*()
 	 */
-	if ((rc = _build_bitmaps())) {
+	if ((rc = _build_bitmaps())) {//构建avail_node_bitmap/idle_node_bitmap/share_node_bitmap等全局节点位图
 		if (test_config) {
 			error("_build_bitmaps failure");
 			test_config_rc = 1;
@@ -2450,7 +2453,8 @@ static int  _preserve_plugins(slurm_ctl_conf_t * ctl_conf_ptr,
 /*
  * _sync_nodes_to_jobs - sync node state to job states on slurmctld restart.
  *	This routine marks nodes allocated to a job as busy no matter what
- *	the node's last saved state
+ *	the node's last saved state在slurmctld重启时将节点状态同步到作业状态。
+ * 这个例程将分配给作业的节点标记为busy，无论节点最后保存的状态如何
  * RET count of nodes having state changed
  * Note: Operates on common variables, no arguments
  */

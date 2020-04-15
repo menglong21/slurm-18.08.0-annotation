@@ -152,7 +152,7 @@ void ping_nodes (void)//ping 节点
 #endif
 
 	ping_agent_args = xmalloc (sizeof (agent_arg_t));
-	ping_agent_args->msg_type = REQUEST_PING;
+	ping_agent_args->msg_type = REQUEST_PING;//ping消息类型
 	ping_agent_args->retry = 0;
 	ping_agent_args->protocol_version = SLURM_PROTOCOL_VERSION;
 	ping_agent_args->hostlist = hostlist_create(NULL);
@@ -361,8 +361,8 @@ void ping_nodes (void)//ping 节点
 		debug("Spawning registration agent for %s %d hosts",
 		      host_str, reg_agent_args->node_count);
 		xfree(host_str);
-		ping_begin();
-		agent_queue_request(reg_agent_args);
+		ping_begin();//开始ping,设置ping计数和开始时间
+		agent_queue_request(reg_agent_args);//通过agent执行
 	}
 
 	if (down_hostlist) {
@@ -445,7 +445,7 @@ extern void run_health_check(void)
 	}
 
 	check_agent_args = xmalloc (sizeof (agent_arg_t));
-	check_agent_args->msg_type = REQUEST_HEALTH_CHECK;
+	check_agent_args->msg_type = REQUEST_HEALTH_CHECK;//rpc消息类型节点健康检查
 	check_agent_args->retry = 0;
 	check_agent_args->protocol_version = SLURM_PROTOCOL_VERSION;
 	check_agent_args->hostlist = hostlist_create(NULL);
@@ -506,7 +506,7 @@ extern void run_health_check(void)
 			check_agent_args->protocol_version =
 				node_ptr->protocol_version;
 		hostlist_push_host(check_agent_args->hostlist, node_ptr->name);
-		check_agent_args->node_count++;
+		check_agent_args->node_count++;//节点计数增加
 	}
 	if (run_cyclic && (i >= node_record_count))
 		base_node_loc = -1;
@@ -522,7 +522,7 @@ extern void run_health_check(void)
 		debug("Spawning health check agent for %s", host_str);
 		xfree(host_str);
 		ping_begin();
-		agent_queue_request(check_agent_args);
+		agent_queue_request(check_agent_args);//发出启动health check消息
 	}
 }
 

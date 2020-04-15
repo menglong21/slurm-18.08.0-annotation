@@ -1261,6 +1261,7 @@ unpack_error:
 	return SLURM_ERROR;
 }
 
+//解析分区配置
 static int _parse_partitionname(void **dest, slurm_parser_enum_t type,
 			       const char *key, const char *value,
 			       const char *line, char **leftover)
@@ -1632,7 +1633,7 @@ static int _parse_partitionname(void **dest, slurm_parser_enum_t type,
 					      tmp);
 					p->max_share = 1; /* Shared=NO */
 				} else
-					p->max_share = i | SHARED_FORCE;
+					p->max_share = i | SHARED_FORCE;//SHARED_FORCE默认32768
 			} else if (xstrcasecmp(tmp, "FORCE") == 0)
 				p->max_share = 4 | SHARED_FORCE;
 			else {
@@ -3216,7 +3217,7 @@ static int _init_slurm_conf(const char *file_name)
 	/* init hash to 0 */
 	conf_ptr->hash_val = 0;
 	if ((_config_is_storage(conf_hashtbl, name) < 0) &&
-		//将文件内容解析到conf_hashtbl
+		//将文件内容解析到conf_hashtbl，生成hash_val用于校验
 	    (s_p_parse_file(conf_hashtbl, &conf_ptr->hash_val, name, false)
 	     == SLURM_ERROR)) {
 		rc = SLURM_ERROR;

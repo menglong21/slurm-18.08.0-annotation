@@ -128,6 +128,7 @@ uint16_t *cr_node_num_cores __attribute__((weak_import));
 uint32_t *cr_node_cores_offset __attribute__((weak_import));
 int slurmctld_tres_cnt __attribute__((weak_import)) = 0;
 #else
+//大部分是全局变量
 slurm_ctl_conf_t slurmctld_conf;
 struct node_record *node_record_table_ptr;
 List part_list;
@@ -136,8 +137,8 @@ int node_record_count;
 time_t last_node_update;
 struct switch_record *switch_record_table;
 int switch_record_cnt;
-bitstr_t *avail_node_bitmap;
-bitstr_t *idle_node_bitmap;
+bitstr_t *avail_node_bitmap;//全局可用节点位图,Slurm管理资源的方式之一
+bitstr_t *idle_node_bitmap;//全局idle节点位图,Slurm管理资源的方式之一
 uint16_t *cr_node_num_cores;
 uint32_t *cr_node_cores_offset;
 int slurmctld_tres_cnt = 0;
@@ -1499,7 +1500,7 @@ static bool _is_preemptable(struct job_record *job_ptr,
 	return false;
 }
 
-/* Determine if a job can ever run */
+/* Determine if a job can ever run确定作业是否可以运行 */
 static int _test_only(struct job_record *job_ptr, bitstr_t *bitmap,
 		      uint32_t min_nodes, uint32_t max_nodes,
 		      uint32_t req_nodes, uint16_t job_node_req)
@@ -1541,7 +1542,7 @@ static int _sort_usable_nodes_dec(void *j1, void *j2)
 	return 0;
 }
 
-/* Allocate resources for a job now, if possible */
+/* 为一个作业分配资源现在, 如果可能的话 */
 static int _run_now(struct job_record *job_ptr, bitstr_t *bitmap,
 		    uint32_t min_nodes, uint32_t max_nodes,
 		    uint32_t req_nodes, uint16_t job_node_req,
@@ -1573,8 +1574,8 @@ top:	orig_map = bit_copy(save_bitmap);
 		}
 	}
 
-	rc = cr_job_test(job_ptr, bitmap, min_nodes, max_nodes, req_nodes,
-			 SELECT_MODE_RUN_NOW, tmp_cr_type, job_node_req,
+	rc = cr_job_test(job_ptr, bitmap, min_nodes, max_nodes, req_nodes,//重要
+			 SELECT_MODE_RUN_NOW, tmp_cr_type, job_node_req,//NODE_CR_AVAILABLE
 			 select_node_cnt, select_part_record,
 			 select_node_usage, exc_core_bitmap, false, false,
 			 preempt_mode);
@@ -2107,7 +2108,7 @@ extern bool select_p_node_ranking(struct node_record *node_ptr, int node_cnt)
 /* This is Part 1 of a 4-part procedure which can be found in
  * src/slurmctld/read_config.c. The whole story goes like this:
  *
- * Step 1: select_g_node_init          : initializes the global node arrays
+ * Step 1: select_g_node_init          : initializes the global node arrays初始化全局节点数组
  * Step 2: select_g_state_restore      : NO-OP - nothing to restore
  * Step 3: select_g_job_init           : NO-OP - nothing to initialize
  * Step 4: select_g_select_nodeinfo_set: called from reset_job_bitmaps() with
@@ -2185,10 +2186,10 @@ extern int select_p_node_init(struct node_record *node_ptr, int node_cnt)
 		xfree(preempt_type);
 	}
 
-	/* initial global core data structures */
+	/* 初始化全局核心数据结构，非常重要  */
 	select_state_initializing = true;
 	select_fast_schedule = slurm_get_fast_schedule();
-	cr_init_global_core_data(node_ptr, node_cnt, select_fast_schedule);
+	cr_init_global_core_data(node_ptr, node_cnt, select_fast_schedule);//初始化cpu核心相关全局数据
 
 	_destroy_node_data(select_node_usage, select_node_record);
 	select_node_cnt  = node_cnt;
@@ -2254,9 +2255,9 @@ extern int select_p_block_init(List part_list)
  * IN min_nodes - minimum count of nodes
  * IN req_nodes - requested (or desired) count of nodes
  * IN max_nodes - maximum count of nodes (0==don't care)
- * IN mode - SELECT_MODE_RUN_NOW   (0): try to schedule job now
- *           SELECT_MODE_TEST_ONLY (1): test if job can ever run
- *           SELECT_MODE_WILL_RUN  (2): determine when and where job can run
+ * IN mode - SELECT_MODE_RUN_NOW   (0): try to schedule job now 现在就调度作业
+ *           SELECT_MODE_TEST_ONLY (1): test if job can ever run 测试作业是否可以运行
+ *           SELECT_MODE_WILL_RUN  (2): determine when and where job can run 确定作业可以在何时何地运行 
  * IN preemptee_candidates - List of pointers to jobs which can be preempted.
  * IN/OUT preemptee_job_list - Pointer to list of job pointers. These are the
  *		jobs to be preempted to initiate the pending job. Not set
@@ -2316,15 +2317,15 @@ extern int select_p_job_test(struct job_record *job_ptr, bitstr_t * bitmap,
 		     bit_set_count(bitmap));
 		_dump_state(select_part_record);
 	}
-	if (mode == SELECT_MODE_WILL_RUN) {
+	if (mode == SELECT_MODE_WILL_RUN) {//回填调度_try_sched
 		rc = _will_run_test(job_ptr, bitmap, min_nodes, max_nodes,
 				    req_nodes, job_node_req,
 				    preemptee_candidates, preemptee_job_list,
 				    exc_core_bitmap);
-	} else if (mode == SELECT_MODE_TEST_ONLY) {
+	} else if (mode == SELECT_MODE_TEST_ONLY) {//创建作业时
 		rc = _test_only(job_ptr, bitmap, min_nodes, max_nodes,
 				req_nodes, job_node_req);
-	} else if (mode == SELECT_MODE_RUN_NOW) {
+	} else if (mode == SELECT_MODE_RUN_NOW) {//后台调度和回填调度_start_job
 		rc = _run_now(job_ptr, bitmap, min_nodes, max_nodes,
 			      req_nodes, job_node_req,
 			      preemptee_candidates, preemptee_job_list,

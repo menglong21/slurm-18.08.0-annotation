@@ -297,7 +297,7 @@ slurmd_req(slurm_msg_t *msg)
 	switch (msg->msg_type) {
 	case REQUEST_LAUNCH_PROLOG:
 		debug2("Processing RPC: REQUEST_LAUNCH_PROLOG");
-		_rpc_prolog(msg);
+		_rpc_prolog(msg);//执行前处理脚本
 		last_slurmctld_msg = time(NULL);
 		break;
 	case REQUEST_BATCH_JOB_LAUNCH:
@@ -305,13 +305,13 @@ slurmd_req(slurm_msg_t *msg)
 		/* Mutex locking moved into _rpc_batch_job() due to
 		 * very slow prolog on Blue Gene system. Only batch
 		 * jobs are supported on Blue Gene (no job steps). */
-		_rpc_batch_job(msg, true);
+		_rpc_batch_job(msg, true);//执行批处理脚本
 		last_slurmctld_msg = time(NULL);
 		break;
 	case REQUEST_LAUNCH_TASKS:
 		debug2("Processing RPC: REQUEST_LAUNCH_TASKS");
 		slurm_mutex_lock(&launch_mutex);
-		_rpc_launch_tasks(msg);
+		_rpc_launch_tasks(msg);//执行任务
 		slurm_mutex_unlock(&launch_mutex);
 		break;
 	case REQUEST_SIGNAL_TASKS:
@@ -368,7 +368,7 @@ slurmd_req(slurm_msg_t *msg)
 		debug2("Processing RPC: REQUEST_SHUTDOWN");
 		_rpc_shutdown(msg);
 		break;
-	case REQUEST_RECONFIGURE:
+	case REQUEST_RECONFIGURE://scontrol reconfig
 		debug2("Processing RPC: REQUEST_RECONFIGURE");
 		_rpc_reconfig(msg);
 		last_slurmctld_msg = time(NULL);
@@ -388,12 +388,12 @@ slurmd_req(slurm_msg_t *msg)
 			send_registration_msg(SLURM_SUCCESS, true);
 		break;
 	case REQUEST_PING:
-		_rpc_ping(msg);
+		_rpc_ping(msg);//处理ping信息
 		last_slurmctld_msg = time(NULL);
 		break;
-	case REQUEST_HEALTH_CHECK:
+	case REQUEST_HEALTH_CHECK://节点健康检查
 		debug2("Processing RPC: REQUEST_HEALTH_CHECK");
-		_rpc_health_check(msg);
+		_rpc_health_check(msg);//slurmctld只发消息，slurmd没有回复
 		last_slurmctld_msg = time(NULL);
 		break;
 	case REQUEST_ACCT_GATHER_UPDATE:
@@ -642,18 +642,18 @@ _send_slurmstepd_init(int fd, int type, void *req,
 		break;
 	}
 	buffer = init_buf(0);
-	msg.data = req;
+	msg.data = req;//将作业结构体req放到msg中
 
 	/* always force the RPC format to the latest */
 	msg.protocol_version = SLURM_PROTOCOL_VERSION;
-	pack_msg(&msg, buffer);
+	pack_msg(&msg, buffer);//打包
 	len = get_buf_offset(buffer);
 
 	/* send the srun protocol_version over, which may be older */
 	safe_write(fd, &protocol_version, sizeof(uint16_t));
 
 	safe_write(fd, &len, sizeof(int));
-	safe_write(fd, get_buf_data(buffer), len);
+	safe_write(fd, get_buf_data(buffer), len);//将作业信息发送给stepd
 	free_buf(buffer);
 	buffer = NULL;
 
@@ -697,8 +697,8 @@ _forkexec_slurmstepd(uint16_t type, void *req,
 		return SLURM_FAILURE;
 	}
 
-	if ((pid = fork()) < 0) {//子进程
-		error("_forkexec_slurmstepd: fork: %m");
+	if ((pid = fork()) < 0) {
+		error("_forkexec_slurmstepd: fork: %m");//fork失败
 		close(to_stepd[0]);
 		close(to_stepd[1]);
 		close(to_slurmd[0]);
@@ -720,7 +720,7 @@ _forkexec_slurmstepd(uint16_t type, void *req,
 			error("Unable to close read to_stepd in parent: %m");
 		if (close(to_slurmd[1]) < 0)
 			error("Unable to close write to_slurmd in parent: %m");
-
+//和slurmstepd通信，发送作业结构体等数据给slurmstepd,对应slurmstepd端_init_from_slurmd
 		if ((rc = _send_slurmstepd_init(to_stepd[1], type,
 						req, cli, self,
 						step_hset,
@@ -772,7 +772,7 @@ _forkexec_slurmstepd(uint16_t type, void *req,
 		if (close(to_slurmd[0]) < 0)
 			error("close read to_slurmd in parent: %m");
 		return rc;
-	} else {
+	} else {//子进程
 #if (SLURMSTEPD_MEMCHECK == 1)
 		/* memcheck test of slurmstepd, option #1 */
 		char *const argv[3] = {"memcheck",
@@ -866,7 +866,7 @@ _forkexec_slurmstepd(uint16_t type, void *req,
 		} else if (pid > 0) { /* child */
 			exit(0);
 		}
-
+		//孙子进程
 		/*
 		 * Just in case we (or someone we are linking to)
 		 * opened a file and didn't do a close on exec.  This
@@ -1492,7 +1492,7 @@ _rpc_launch_tasks(slurm_msg_t *msg)
 		job_env.spank_job_env_size = req->spank_job_env_size;
 		job_env.uid = req->uid;
 		job_env.user_name = req->user_name;
-		rc =  _run_prolog(&job_env, req->cred, true);
+		rc =  _run_prolog(&job_env, req->cred, true);//执行前处理脚本
 		if (rc) {
 			int term_sig = 0, exit_status = 0;
 			if (WIFSIGNALED(rc))
@@ -2264,6 +2264,7 @@ static void _rpc_prolog(slurm_msg_t *msg)
 static void
 _rpc_batch_job(slurm_msg_t *msg, bool new_msg)
 {
+	//req->environment中存放着完整的sbatch时获取的用户系统环境变量，req->envc为环境变量个数
 	batch_job_launch_msg_t *req = (batch_job_launch_msg_t *)msg->data;
 	bool     first_job_run;
 	int      rc = SLURM_SUCCESS;
@@ -2395,7 +2396,7 @@ _rpc_batch_job(slurm_msg_t *msg, bool new_msg)
 		if ((rc = container_g_create(req->job_id)))
 			error("container_g_create(%u): %m", req->job_id);
 		else
-			rc = _run_prolog(&job_env, req->cred, true);//前处理脚本
+			rc = _run_prolog(&job_env, req->cred, true);//计算节点slurmd执行job前处理脚本
 		xfree(job_env.resv_id);
 		if (rc) {
 			int term_sig = 0, exit_status = 0;
@@ -2414,7 +2415,7 @@ _rpc_batch_job(slurm_msg_t *msg, bool new_msg)
 		_wait_for_job_running_prolog(req->job_id);
 	}
 
-	if (_get_user_env(req) < 0) {
+	if (_get_user_env(req) < 0) {//修改环境变量
 		bool requeue = _requeue_setup_env_fail();
 		if (requeue) {
 			rc = ESLURMD_SETUP_ENVIRONMENT_ERROR;
@@ -2438,8 +2439,9 @@ _rpc_batch_job(slurm_msg_t *msg, bool new_msg)
 	info("Launching batch job %u for UID %u", req->job_id, req->uid);
 
 	debug3("_rpc_batch_job: call to _forkexec_slurmstepd");
-	rc = _forkexec_slurmstepd(LAUNCH_BATCH_JOB, (void *)req, cli, NULL,//重要
-				  (hostset_t)NULL, SLURM_PROTOCOL_VERSION);
+	rc = _forkexec_slurmstepd(LAUNCH_BATCH_JOB, (void *)req, cli, NULL,//创建slurmstepd重要
+				  (hostset_t)NULL, SLURM_PROTOCOL_VERSION);//slurmd会依照顺序创建出来三个slurmstepd，后缀分别是extern、batch、0，
+				  //其中.0为应用进程,并且可以获得所有提交用户系统环境变量和作业脚本中设置的环境变量。
 	debug3("_rpc_batch_job: return from _forkexec_slurmstepd: %d", rc);
 
 	slurm_mutex_unlock(&launch_mutex);
@@ -3077,13 +3079,13 @@ _rpc_ping(slurm_msg_t *msg)
 	} else {
 		slurm_msg_t resp_msg;
 		ping_slurmd_resp_msg_t ping_resp;
-		get_cpu_load(&ping_resp.cpu_load);
-		get_free_mem(&ping_resp.free_mem);
+		get_cpu_load(&ping_resp.cpu_load);//获取节点cpu负载信息
+		get_free_mem(&ping_resp.free_mem);//获取节点空闲内存信息
 		slurm_msg_t_copy(&resp_msg, msg);
 		resp_msg.msg_type = RESPONSE_PING_SLURMD;
 		resp_msg.data     = &ping_resp;
 
-		slurm_send_node_msg(msg->conn_fd, &resp_msg);
+		slurm_send_node_msg(msg->conn_fd, &resp_msg);//发给管理节点
 	}
 
 	/* Take this opportunity to enforce any job memory limits */
@@ -3119,7 +3121,7 @@ _rpc_health_check(slurm_msg_t *msg)
 	}
 
 	if (rc == SLURM_SUCCESS)
-		rc = run_script_health_check();
+		rc = run_script_health_check();//执行脚本，未处理返回值
 
 	/* Take this opportunity to enforce any job memory limits */
 	_enforce_job_mem_limit();
@@ -6398,7 +6400,7 @@ static void _wait_for_job_running_prolog(uint32_t job_id)
 
 		slurm_mutex_lock(&dummy_lock);
 		slurm_cond_timedwait(&conf->prolog_running_cond,
-				     &dummy_lock, &ts);
+				     &dummy_lock, &ts);//超时
 		slurm_mutex_unlock(&dummy_lock);
 	}
 

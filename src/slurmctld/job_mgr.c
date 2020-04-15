@@ -111,7 +111,7 @@
 #define TOP_PRIORITY 0xffff0000	/* large, but leave headroom for higher */
 #define PURGE_OLD_JOB_IN_SEC 2592000 /* 30 days in seconds */
 
-#define JOB_HASH_INX(_job_id)	(_job_id % hash_table_size)
+#define JOB_HASH_INX(_job_id)	(_job_id % hash_table_size)//作业哈希索引
 #define JOB_ARRAY_HASH_INX(_job_id, _task_id) \
 	((_job_id + _task_id) % hash_table_size)
 
@@ -147,15 +147,15 @@ time_t last_job_update;		/* time of last update to job records */
 
 List purge_files_list = NULL;	/* job files to delete */
 
-/* Local variables */
+/* 局部变量 */
 static int      bf_min_age_reserve = 0;
 static uint32_t delay_boot = 0;
 static uint32_t highest_prio = 0;
 static uint32_t lowest_prio  = TOP_PRIORITY;
-static int      hash_table_size = 0;
+static int      hash_table_size = 0;//哈希表大小
 static int      job_count = 0;		/* job's in the system */
 static uint32_t job_id_sequence = 0;	/* first job_id to assign new job */
-static struct   job_record **job_hash = NULL;
+static struct   job_record **job_hash = NULL;//作业哈希表
 static struct   job_record **job_array_hash_j = NULL;
 static struct   job_record **job_array_hash_t = NULL;
 static bool     kill_invalid_dep;
@@ -600,7 +600,7 @@ static uint32_t _max_switch_wait(uint32_t input_wait)
 		sched_update = slurmctld_conf.last_update;
 		sched_params = slurm_get_sched_params();
 		if (sched_params &&
-		    (tmp_ptr = strstr(sched_params, "max_switch_wait="))) {
+		    (tmp_ptr = strstr(sched_params, "max_switch_wait="))) {//没搞明白这个参数啥意思
 		/*                                   0123456789012345 */
 			i = atoi(tmp_ptr + 16);
 			if (i < 0) {
@@ -3170,7 +3170,7 @@ extern struct job_record *find_job_pack_record(uint32_t job_id,
 }
 
 /*
- * find_job_record - return a pointer to the job record with the given job_id
+ * find_job_record - 使用给定的job_id返回指向job record的指针
  * IN job_id - requested job's id
  * RET pointer to the job's record, NULL on error
  */
@@ -4601,7 +4601,7 @@ static int _select_nodes_parts(struct job_record *job_ptr, bool test_only,
 	int rc = ESLURM_REQUESTED_PART_CONFIG_UNAVAILABLE;
 	int best_rc = -1, part_limits_rc = WAIT_NO_REASON;
 
-	if (job_ptr->part_ptr_list) {
+	if (job_ptr->part_ptr_list) {//一般不走这儿
 		list_sort(job_ptr->part_ptr_list, priority_sort_part_tier);
 		iter = list_iterator_create(job_ptr->part_ptr_list);
 		while ((part_ptr = list_next(iter))) {
@@ -4683,7 +4683,7 @@ static int _select_nodes_parts(struct job_record *job_ptr, bool test_only,
 			rc = best_rc;
 		else if (part_limits_rc == WAIT_PART_DOWN)
 			rc = ESLURM_PARTITION_DOWN;
-	} else {
+	} else {//一般走这边，主要是select_nodes
 		part_limits_rc = job_limits_check(&job_ptr, false);
 		if (part_limits_rc == WAIT_NO_REASON) {
 			rc = select_nodes(job_ptr, test_only,
@@ -4734,22 +4734,22 @@ static inline bool _has_deadline(struct job_record *job_ptr)
 
 /*
  * job_allocate - create job_records for the supplied job specification and
- *	allocate nodes for it.
- * IN job_specs - job specifications
- * IN immediate - if set then either initiate the job immediately or fail
+ *	allocate nodes for it.为提供的作业规范创建job_records并为其分配节点
+ * IN job_specs - job specifications作业规范
+ * IN immediate - if set then either initiate the job immediately or fail如果设置，则立即启动作业或失败
  * IN will_run - don't initiate the job if set, just test if it could run
- *	now or later
- * OUT resp - will run response (includes start location, time, etc.)
- * IN allocate - resource allocation request only if set, batch job if zero
- * IN submit_uid -uid of user issuing the request
- * OUT job_pptr - set to pointer to job record
+ *	now or later如果设置，则不启动作业，只测试它是否可以立即运行
+ * OUT resp - will run response (includes start location, time, etc.)返回值，即将运行的响应信息
+ * IN allocate - resource allocation request only if set, batch job if zero资源分配请求仅在设置时，批处理作业为零
+ * IN submit_uid -uid of user issuing the request发出请求的用户的uid
+ * OUT job_pptr - set to pointer to job record返回值，设置为指向作业记录的指针
  * OUT err_msg - Custom error message to the user, caller to xfree results
  * IN protocol_version - version of the code the caller is using
  * RET 0 or an error code. If the job would only be able to execute with
  *	some change in partition configuration then
  *	ESLURM_REQUESTED_PART_CONFIG_UNAVAILABLE is returned
- * globals: job_list - pointer to global job list
- *	list_part - global list of partition info
+ * globals: job_list - 指向全局作业列表的指针
+ *	list_part - 全局分区信息列表
  *	default_part_loc - pointer to default partition
  */
 //为所提供的作业规范创建JOB_Records并为其分配节点，重要函数
@@ -4772,6 +4772,7 @@ extern int job_allocate(job_desc_msg_t * job_specs, int immediate,
 	xassert(verify_lock(NODE_LOCK, WRITE_LOCK));
 	xassert(verify_lock(PART_LOCK, READ_LOCK));
 
+	//更新部分调度参数
 	if (sched_update != slurmctld_conf.last_update) {
 		sched_update = slurmctld_conf.last_update;
 		sched_params = slurm_get_sched_params();
@@ -4805,7 +4806,7 @@ extern int job_allocate(job_desc_msg_t * job_specs, int immediate,
 		      __func__, slurmctld_conf.max_job_cnt);
 		return EAGAIN;
 	}
-	//为所提供的规范创建作业表记录。
+	//1.为所提供的规范创建作业表记录。
 	error_code = _job_create(job_specs, allocate, will_run,
 				 &job_ptr, submit_uid, err_msg,
 				 protocol_version);
@@ -4823,6 +4824,7 @@ extern int job_allocate(job_desc_msg_t * job_specs, int immediate,
 		return error_code;
 	}
 	xassert(job_ptr);
+	//2.作业依赖
 	if (job_specs->array_bitmap)
 		independent = false;
 	else
@@ -4833,10 +4835,10 @@ extern int job_allocate(job_desc_msg_t * job_specs, int immediate,
 	 * job is eligible.
 	 */
 	if (job_ptr->priority == NO_VAL)
-		set_job_prio(job_ptr);
+		set_job_prio(job_ptr);//3.设置作业优先级，一般是一个作业在slurmctld.log里面的第一条记录。
 
 	if (independent &&
-	    (license_job_test(job_ptr, time(NULL), true) != SLURM_SUCCESS))
+	    (license_job_test(job_ptr, time(NULL), true) != SLURM_SUCCESS))//测试证书
 		independent = false;
 
 	/* Avoid resource fragmentation if important */
@@ -4904,7 +4906,7 @@ extern int job_allocate(job_desc_msg_t * job_specs, int immediate,
 
 	no_alloc = no_alloc || (bb_g_job_test_stage_in(job_ptr, no_alloc) != 1);
 
-	error_code = _select_nodes_parts(job_ptr, no_alloc, NULL, err_msg);
+	error_code = _select_nodes_parts(job_ptr, no_alloc, NULL, err_msg);//4.为作业分配节点,no_alloc为true说明只用于测试
 	if (!test_only) {
 		last_job_update = now;
 	}
@@ -5986,7 +5988,7 @@ static int _alt_part_test(struct part_record *part_ptr,
 }
 
 /*
- * Test if this job can use this partition
+ * 测试此作业是否可以使用此分区
  *
  * NOTE: This function is also called with a dummy job_desc_msg_t from
  * job_limits_check() if there is any new check added here you may also have to
@@ -6140,9 +6142,9 @@ static int _get_job_parts(job_desc_msg_t * job_desc,
 	int rc = SLURM_SUCCESS;
 
 	/* Identify partition(s) and set pointer(s) to their struct */
-	if (job_desc->partition) {
+	if (job_desc->partition) {//如果提交时已经指定了分区
 		char *err_part = NULL;
-		part_ptr = find_part_record(job_desc->partition);
+		part_ptr = find_part_record(job_desc->partition);//从全局分区链表找到该分区
 		if (part_ptr == NULL) {
 			part_ptr_list = get_part_list(job_desc->partition,
 						      &err_part);
@@ -6159,15 +6161,15 @@ static int _get_job_parts(job_desc_msg_t * job_desc,
 					err_part);
 				xfree(err_part);
 			}
-			return ESLURM_INVALID_PARTITION_NAME;
+			return ESLURM_INVALID_PARTITION_NAME;//分区不对
 		}
 	} else if (job_desc->reservation && job_desc->reservation[0] != '\0' ) {
 		slurmctld_resv_t *resv_ptr = NULL;
-		resv_ptr = find_resv_name(job_desc->reservation);
+		resv_ptr = find_resv_name(job_desc->reservation);//根据名字找到预约
 		if (resv_ptr)
 			part_ptr = resv_ptr->part_ptr;
 		if (part_ptr)
-			job_desc->partition = xstrdup(part_ptr->name);
+			job_desc->partition = xstrdup(part_ptr->name);//根据预约中的分区名字设置
 	}
 
 	if (!part_ptr) {
@@ -6477,7 +6479,7 @@ fini:
 }
 
 /*
- * job_limits_check - check the limits specified for the job.
+ * job_limits_check - 检查为作业指定的限制.
  * IN job_ptr - pointer to job table entry.
  * IN check_min_time - if true test job's minimum time limit,
  *		otherwise test maximum time limit
@@ -6526,7 +6528,7 @@ extern int job_limits_check(struct job_record **job_pptr, bool check_min_time)
 	else
 		job_desc.time_limit = job_ptr->time_limit;
 
-	if ((rc = _part_access_check(part_ptr, &job_desc, NULL,
+	if ((rc = _part_access_check(part_ptr, &job_desc, NULL,//测试此作业是否可以使用此分区
 				     job_ptr->user_id, qos_ptr,
 				     job_ptr->account))) {
 		debug2("%pJ can't run in partition %s: %s",
@@ -6664,7 +6666,7 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 	user_submit_priority = job_desc->priority;
 
 	/* ensure that selected nodes are in this partition */
-	if (job_desc->req_nodes) {
+	if (job_desc->req_nodes) {//提交时显示指定节点sbatch -w
 		error_code = node_name2bitmap(job_desc->req_nodes, false,
 					      &req_bitmap);
 		if (error_code) {
@@ -6702,7 +6704,7 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 	}
 
 	error_code = _get_job_parts(job_desc, &part_ptr, &part_ptr_list,
-				    err_msg);
+				    err_msg);//获取作业分区
 	if (error_code != SLURM_SUCCESS)
 		goto cleanup_fail;
 
@@ -6711,8 +6713,7 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 	assoc_rec.partition = part_ptr->name;
 	assoc_rec.uid       = job_desc->user_id;
 	/*
-	 * Checks are done later to validate assoc_ptr, so we don't
-	 * need to lock outside of fill_in_assoc.
+	 * 稍后将进行检查以验证assoc_ptr，因此我们不需要在fill_in_assoc外部锁定。
 	 */
 	if (assoc_mgr_fill_in_assoc(acct_db_conn, &assoc_rec,
 				    accounting_enforce, &assoc_ptr, false)) {
@@ -6745,10 +6746,10 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 	if (job_desc->account == NULL)
 		job_desc->account = xstrdup(assoc_rec.acct);
 
-	/* This must be done after we have the assoc_ptr set */
+	/* 这必须在设置assoc_ptr之后完成	*/
 	memset(&qos_rec, 0, sizeof(slurmdb_qos_rec_t));
 	qos_rec.name = job_desc->qos;
-
+	//验证qos
 	qos_ptr = _determine_and_validate_qos(
 		job_desc->reservation, assoc_ptr, false, &qos_rec, &qos_error,
 		false);
@@ -6757,13 +6758,13 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 		error_code = qos_error;
 		goto cleanup_fail;
 	}
-
+	//验证分区
 	error_code = _valid_job_part(job_desc, submit_uid, req_bitmap,
 				     part_ptr, part_ptr_list,
 				     assoc_ptr, qos_ptr);
 	if (error_code != SLURM_SUCCESS)
 		goto cleanup_fail;
-
+	//验证作业描述符
 	if ((error_code = _validate_job_desc(job_desc, allocate, submit_uid,
 					     part_ptr, part_ptr_list))) {
 		goto cleanup_fail;
@@ -6776,7 +6777,7 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 					job_desc->pn_min_memory,
 					job_desc->tres_req_cnt[TRES_ARRAY_CPU],
 					job_desc->min_nodes);
-
+	//验证license
 	license_list = license_validate(job_desc->licenses,
 					job_desc->tres_req_cnt, &valid);
 	if (!valid) {
@@ -6785,7 +6786,7 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 		error_code = ESLURM_INVALID_LICENSES;
 		goto cleanup_fail;
 	}
-
+	//验证gres
 	if ((error_code = gres_plugin_job_state_validate(
 						job_desc->cpus_per_tres,
 						job_desc->tres_per_job,
@@ -6802,7 +6803,7 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 						&job_desc->cpus_per_task,
 						&gres_list)))
 		goto cleanup_fail;
-
+	//验证tres
 	if (!valid_tres_cnt(job_desc->cpus_per_tres)	||
 	    !valid_tres_cnt(job_desc->mem_per_tres)	||
 	    tres_bind_verify_cmdline(job_desc->tres_bind) ||
@@ -6824,14 +6825,14 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 
 	/*
 	 * Do this last,after other TRES' have been set as it uses the other
-	 * values to calcuate the billing value.
+	 * values to calcuate the billing value.计费
 	 */
 	job_desc->tres_req_cnt[TRES_ARRAY_BILLING] =
 		assoc_mgr_tres_weighted(job_desc->tres_req_cnt,
 					part_ptr->billing_weights,
 					slurmctld_conf.priority_flags, false);
 
-	if ((error_code = bb_g_job_validate(job_desc, submit_uid))
+	if ((error_code = bb_g_job_validate(job_desc, submit_uid))//验证burst buffer
 	    != SLURM_SUCCESS)
 		goto cleanup_fail;
 
@@ -6852,7 +6853,7 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 		error_code = ESLURM_ACCOUNTING_POLICY;
 		goto cleanup_fail;
 	}
-
+	//sbatch -x排除某些节点
 	if (job_desc->exc_nodes) {
 		error_code = node_name2bitmap(job_desc->exc_nodes, false,
 					      &exc_bitmap);
@@ -6861,6 +6862,7 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 			goto cleanup_fail;
 		}
 	}
+	//比较作业请求的节点和排除的节点是否重叠
 	if (exc_bitmap && req_bitmap) {
 		bitstr_t *tmp_bitmap = NULL;
 		bitoff_t first_set;
@@ -6890,12 +6892,12 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 	}
 	//将作业描述符从rpc结构复制到实际的slurmctld作业记录中。
 	if ((error_code = _copy_job_desc_to_job_record(job_desc,
-						       job_pptr,
+						       job_pptr,//job_pptr把作业结构体又带了回来，用于进一步初始化和失败清理等
 						       &req_bitmap,
 						       &exc_bitmap))) {
 		if (error_code == SLURM_ERROR)
 			error_code = ESLURM_ERROR_ON_DESC_TO_RECORD_COPY;
-		job_ptr = *job_pptr;//job_pptr把作业结构体又带了回来，用于失败清理
+		job_ptr = *job_pptr;
 		goto cleanup_fail;
 	}
 
@@ -6986,6 +6988,9 @@ static int _job_create(job_desc_msg_t *job_desc, int allocate, int will_run,
 	    &&  (!will_run)) {	/* don't bother with copy if just a test */
 		if ((error_code = _copy_job_desc_to_file(job_desc,
 							 job_ptr->job_id))) {
+							 //如果不能立即执行，则将作业脚本和环境从RPC结构复制到文件中
+							 //spool/hash.x/job.id/script和environment
+							 //有个专门的线程清理这些临时文件，purge_job_record唤醒
 			error_code = ESLURM_WRITING_TO_FILE;
 			goto cleanup_fail;
 		}
@@ -7326,8 +7331,8 @@ _copy_job_desc_to_file(job_desc_msg_t * job_desc, uint32_t job_id)
 
 	START_TIMER;
 
-	/* Create directory based upon job ID due to limitations on the number
-	 * of files possible in a directory on some file system types (e.g.
+	/* 由于某些文件系统类型的目录中可能存在的文件数受到限制，
+	 * 因此基于作业ID创建目录 (e.g.
 	 * up to 64k files on a FAT32 file system). */
 	hash = job_id % 10;
 	dir_name = xstrdup_printf("%s/hash.%d",
@@ -7346,7 +7351,7 @@ _copy_job_desc_to_file(job_desc_msg_t * job_desc, uint32_t job_id)
 		return ESLURM_WRITING_TO_FILE;
 	}
 
-	/* Create environment file, and write data to it */
+	/* 创建environment文件写入数据 */
 	file_name = xstrdup_printf("%s/environment", dir_name);
 	error_code = _write_data_array_to_file(file_name,
 					       job_desc->environment,
@@ -7354,7 +7359,7 @@ _copy_job_desc_to_file(job_desc_msg_t * job_desc, uint32_t job_id)
 	xfree(file_name);
 
 	if (error_code == 0) {
-		/* Create script file */
+		/* 创建script文件，写入完整作业脚本内容 */
 		file_name = xstrdup_printf("%s/script", dir_name);
 		error_code = _write_data_to_file(file_name, job_desc->script);
 		xfree(file_name);
@@ -7872,7 +7877,7 @@ _copy_job_desc_to_job_record(job_desc_msg_t * job_desc,
 	job_ptr->warn_signal = job_desc->warn_signal;
 	job_ptr->warn_time   = job_desc->warn_time;
 
-	detail_ptr = job_ptr->details;
+	detail_ptr = job_ptr->details;//很多重要信息存在这个details里面
 	detail_ptr->argc = job_desc->argc;
 	detail_ptr->argv = job_desc->argv;
 	job_desc->argv   = (char **) NULL; /* nothing left to free */
@@ -8886,8 +8891,7 @@ static void _job_timed_out(struct job_record *job_ptr)
 	return;
 }
 
-/* _validate_job_desc - validate that a job descriptor for job submit or
- *	allocate has valid data, set values to defaults as required
+/* _validate_job_desc - 验证作业提交或分配的作业描述符是否具有有效数据，根据需要将值设置为默认值
  * IN/OUT job_desc_msg - pointer to job descriptor, modified as needed
  * IN allocate - if clear job to be queued, if set allocate for user now
  * IN submit_uid - who request originated
@@ -10926,7 +10930,8 @@ void reset_job_bitmaps(void)
 	list_iterator_reset(job_iterator);
 	/* This will reinitialize the select plugin database, which
 	 * we can only do after ALL job's states and bitmaps are set
-	 * (i.e. it needs to be in this second loop) */
+	 * 这将重新初始化选择插件数据库，我们只能在设置所有作业的状态和位图后执行此操作
+	 * (i.e. it needs to be in this second loop)也就是说，它需要在第二个循环中 */
 	while ((job_ptr = (struct job_record *) list_next(job_iterator))) {
 		if (select_g_select_nodeinfo_set(job_ptr) != SLURM_SUCCESS) {
 			error("select_g_select_nodeinfo_set(%pJ): %m",
@@ -13820,7 +13825,7 @@ validate_jobs_on_node(slurm_node_registration_status_msg_t *reg_msg)
 	char step_str[64];
 	time_t now = time(NULL);
 
-	node_ptr = find_node_record(reg_msg->node_name);
+	node_ptr = find_node_record(reg_msg->node_name);//根据节点名从全局节点哈希表中获取节点描述符
 	if (node_ptr == NULL) {
 		error("slurmd registered on unknown node %s",
 			reg_msg->node_name);
@@ -13864,7 +13869,7 @@ validate_jobs_on_node(slurm_node_registration_status_msg_t *reg_msg)
 			continue;
 		}
 
-		job_ptr = find_job_record(reg_msg->job_id[i]);
+		job_ptr = find_job_record(reg_msg->job_id[i]);//找到对应作业描述符
 		if (job_ptr == NULL) {
 			error("Orphan JobId=%u %s reported on node %s",
 			      reg_msg->job_id[i],
@@ -13876,20 +13881,20 @@ validate_jobs_on_node(slurm_node_registration_status_msg_t *reg_msg)
 		}
 
 		else if (IS_JOB_RUNNING(job_ptr) ||
-			 IS_JOB_SUSPENDED(job_ptr)) {
-			if (bit_test(job_ptr->node_bitmap, node_inx)) {
+			 IS_JOB_SUSPENDED(job_ptr)) {//如果作业运行中或者挂起
+			if (bit_test(job_ptr->node_bitmap, node_inx)) {//节点在作业的节点位图中
 				if ((job_ptr->batch_flag) &&
 				    (node_inx == bit_ffs(
 						job_ptr->node_bitmap))) {
 					/* NOTE: Used for purging defunct
 					 * batch jobs */
-					job_ptr->time_last_active = now;
+					job_ptr->time_last_active = now;//更新作业最后运行时间
 				}
 				step_ptr = find_step_record(job_ptr,
 							    reg_msg->
 							    step_id[i]);
 				if (step_ptr)
-					step_ptr->time_last_active = now;
+					step_ptr->time_last_active = now;//更新作业步最后运行时间
 				debug3("Registered %pS on node %s",
 				       step_ptr, reg_msg->node_name);
 			} else {
@@ -13953,7 +13958,7 @@ validate_jobs_on_node(slurm_node_registration_status_msg_t *reg_msg)
 
 	jobs_on_node = node_ptr->run_job_cnt + node_ptr->comp_job_cnt;
 	if (jobs_on_node)
-		_purge_missing_jobs(node_inx, now);
+		_purge_missing_jobs(node_inx, now);//清理节点上的无效作业
 
 	if (jobs_on_node != reg_msg->job_count) {
 		/* slurmd will not know of a job unless the job has
@@ -14005,7 +14010,7 @@ static void _purge_missing_jobs(int node_inx, time_t now)
 		    (job_ptr->start_time < node_boot_time)) {
 			startup_time = batch_startup_time - resume_timeout;
 		} else
-			startup_time = batch_startup_time;
+			startup_time = batch_startup_time;//slurm.conf BatchStartTimeout
 
 		if ((job_ptr->batch_flag != 0)			&&
 		    (job_ptr->pack_job_offset == 0)		&&
@@ -14945,7 +14950,7 @@ extern bool job_independent(struct job_record *job_ptr, int will_run)
 
 	/* Test dependencies first so we can cancel jobs before dependent
 	 * job records get purged (e.g. afterok, afternotok) */
-	depend_rc = test_job_dependency(job_ptr);
+	depend_rc = test_job_dependency(job_ptr);//测试是否存在依赖
 	if (depend_rc == 1) {
 		/* start_time has passed but still has dependency which
 		 * makes it ineligible */

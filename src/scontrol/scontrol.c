@@ -400,7 +400,7 @@ static void _write_config(void)
 	/* slurm config loading code copied from _print_config() */
 
 	if (old_slurm_ctl_conf_ptr) {
-		error_code = slurm_load_ctl_conf (
+		error_code = slurm_load_ctl_conf (//加载旧的配置信息
 				old_slurm_ctl_conf_ptr->last_update,
 				&slurm_ctl_conf_ptr);
 		if (error_code == SLURM_SUCCESS) {
@@ -415,7 +415,7 @@ static void _write_config(void)
 		}
 	} else {
 		error_code = slurm_load_ctl_conf ((time_t) NULL,
-						  &slurm_ctl_conf_ptr);
+						  &slurm_ctl_conf_ptr);//加载配置信息
 	}
 
 	if (error_code) {
@@ -451,7 +451,7 @@ static void _write_config(void)
 			return;
 		}
 
-		/* send the info off to be written */
+		/* send the info off to be written 写当前配置信息*/
 		slurm_write_ctl_conf (slurm_ctl_conf_ptr,
 				      node_info_ptr,
 				      part_info_ptr);
@@ -1323,7 +1323,7 @@ static int _process_command (int argc, char **argv)
 	else if (xstrncasecmp(tag, "show", MAX(tag_len, 3)) == 0) {//输出作业信息
 		_show_it (argc, argv);
 	}
-	else if (xstrncasecmp(tag, "write", MAX(tag_len, 5)) == 0) {
+	else if (xstrncasecmp(tag, "write", MAX(tag_len, 5)) == 0) {//scontrol write config 将当前配置信息写入到一个文件中slurm.conf.<datetime>
 		if (argc < 2) {
 			exit_code = 1;
 			fprintf(stderr,
@@ -1349,7 +1349,7 @@ static int _process_command (int argc, char **argv)
 					"too many arguments for keyword:%s\n",
 					tag);
 			} else {
-				_write_config();
+				_write_config();//实际写
 			}
 		} else {
 			exit_code = 1;
@@ -1387,7 +1387,7 @@ static int _process_command (int argc, char **argv)
 		}
 
 		if (backup_inx != -1) {
-			error_code = slurm_takeover(backup_inx);
+			error_code = slurm_takeover(backup_inx);//发送REQUEST_TAKEOVER消息给备份控制器，让其接管控制
 			if (error_code) {
 				exit_code = 1;
 				if (quiet_flag != 1)

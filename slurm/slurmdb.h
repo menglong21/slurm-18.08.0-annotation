@@ -418,20 +418,15 @@ typedef struct {
 
 /* This has slurmdb_assoc_rec_t's in it so we define the struct afterwards. */
 typedef struct slurmdb_assoc_usage slurmdb_assoc_usage_t;
-
+//association描述符，slurm管理资源的方式<集群,账户,用户,分区>
 typedef struct slurmdb_assoc_rec {
 	List accounting_list; /* list of slurmdb_accounting_rec_t *'s */
-	char *acct;		   /* account/project associated to
-				    * assoc */
-	struct slurmdb_assoc_rec *assoc_next; /* next assoc with
-						       * same hash index
-						       * based off the
-						       * account/user
+	char *acct;		   /* 与assoc相关联的帐户/项目	*/
+	struct slurmdb_assoc_rec *assoc_next; /*基于帐户/用户的具有相同哈希索引的下一个关联	
 						       * DOESN'T GET PACKED */
-	struct slurmdb_assoc_rec *assoc_next_id; /* next assoc with
-							* same hash index
+	struct slurmdb_assoc_rec *assoc_next_id; /* 具有相同哈希索引的下一个关联 
 							* DOESN'T GET PACKED */
-	char *cluster;		   /* cluster associated to association */
+	char *cluster;		   /* 与association 关联的集群*/
 
 	uint32_t def_qos_id;       /* Which QOS id is this
 				    * associations default */
@@ -525,9 +520,7 @@ typedef struct slurmdb_assoc_rec {
 				    * higher than this. */
 	char *parent_acct;	   /* name of parent account */
 	uint32_t parent_id;	   /* id of parent account */
-	char *partition;	   /* optional partition in a cluster
-				    * associated to association */
-
+	char *partition;	   /* 与 association	关联的集群中的可选分区*/
 	List qos_list;             /* list of char * */
 
 	uint32_t rgt;		   /* rgt used for grouping sub

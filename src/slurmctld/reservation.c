@@ -97,7 +97,7 @@ typedef struct resv_thread_args {
 } resv_thread_args_t;
 
 time_t    last_resv_update = (time_t) 0;
-List      resv_list = (List) NULL;
+List      resv_list = (List) NULL;//预约链表
 uint32_t  top_suffix = 0;
 
 /*
@@ -2973,7 +2973,7 @@ extern int delete_resv(reservation_name_msg_t *resv_desc_ptr)
 	return rc;
 }
 
-/* Return pointer to the named reservation or NULL if not found */
+/* 返回指向预留的指针，如果未找到则返回NULL*/
 extern slurmctld_resv_t *find_resv_name(char *resv_name)
 {
 	slurmctld_resv_t *resv_ptr;

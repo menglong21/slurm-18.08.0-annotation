@@ -125,17 +125,19 @@ struct job_resources {
  * node_res_record.node_state assists with the unique state of each node.
  * When a job is allocated, these flags provide protection for nodes in a
  * Shared=NO or Shared=EXCLUSIVE partition from other jobs.
+ * node_res_record.node_state帮助处理每个节点的唯一状态。 
+ * 分配作业时，这些标志可为其他作业中的Shared = NO或Shared = EXCLUSIVE分区中的节点提供保护。
  *
  * NOTES:
  * - If node is in use by Shared=NO part, some CPUs/memory may be available
- * - Caution with NODE_CR_AVAILABLE: a Sharing partition could be full.
+ * - Caution with NODE_CR_AVAILABLE: a Sharing partition could be full.注意NODE_CR_AVAILABLE，共享分区可能已满
  *
  * - these values are staggered so that they can be incremented as multiple
  *   jobs are allocated to each node. This is needed to be able to support
  *   preemption, which can override these protections.
  */
 enum node_cr_state {
-	NODE_CR_AVAILABLE = 0,    /* The node may be IDLE or IN USE (shared) */
+	NODE_CR_AVAILABLE = 0,    /* The node may be IDLE or IN USE (shared) 节点可能IDLE或IN USE*/
 	NODE_CR_ONE_ROW = 1,      /* node is in use by Shared=NO part */
 	NODE_CR_RESERVED = 64000  /* node is in use by Shared=EXCLUSIVE part */
 };

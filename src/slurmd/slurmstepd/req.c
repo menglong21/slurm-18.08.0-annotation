@@ -105,8 +105,8 @@ static bool _msg_socket_readable(eio_obj_t *obj);
 static int _msg_socket_accept(eio_obj_t *obj, List objs);
 
 struct io_operations msg_socket_ops = {
-	.readable = &_msg_socket_readable,
-	.handle_read = &_msg_socket_accept
+	.readable = &_msg_socket_readable,//函数指针，处理读事件
+	.handle_read = &_msg_socket_accept//函数指针，处理accept事件
 };
 
 static char *socket_name;
@@ -150,7 +150,9 @@ _create_socket(const char *name)
 	int len;
 	struct sockaddr_un addr;
 
-	/* create a unix domain stream socket */
+	/* 创建一个命名的unix域监听套接字 */
+	//UNIX Domain Socket是全双工的，API接口语义丰富，
+	//相比其它IPC机制有明显的优越性，目前已成为使用最广泛的IPC机制
 	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 		return -1;
 	fd_set_close_on_exec(fd);
@@ -184,6 +186,7 @@ _domain_socket_create(const char *dir, const char *nodename,
 
 	/*
 	 * Make sure that "dir" exists and is a directory.
+	 * 确保“dir”存在并且是目录
 	 */
 	if (stat(dir, &stat_buf) < 0) {
 		error("Domain socket directory %s: %m", dir);
@@ -195,6 +198,7 @@ _domain_socket_create(const char *dir, const char *nodename,
 
 	/*
 	 * Now build the name of socket, and create the socket.
+	 * 现在构建套接字的名称，并创建套接字。
 	 */
 	xstrfmtcat(name, "%s/%s_%u.%u", dir, nodename, jobid, stepid);
 
@@ -214,14 +218,14 @@ _domain_socket_create(const char *dir, const char *nodename,
 			return -1;
 		}
 	}
-
+	//创建一个命名的unix域监听套接字
 	fd = _create_socket(name);
 	if (fd < 0)
 		fatal("Could not create domain socket: %m");
 
 	if (chmod(name, 0777) == -1)
 		error("%s: chmod(%s): %m", __func__, name);
-	socket_name = name;
+	socket_name = name;//保存socket名字
 	return fd;
 }
 
@@ -254,18 +258,20 @@ msg_thr_create(stepd_step_rec_t *job)
 	int fd;
 	eio_obj_t *eio_obj;
 	errno = 0;
+	//创建一个命名的unix域监听套接字
 	fd = _domain_socket_create(conf->spooldir, conf->node_name,
 				   job->jobid, job->stepid);
 	if (fd == -1)
 		return SLURM_ERROR;
 
-	fd_set_nonblocking(fd);
+	fd_set_nonblocking(fd);//设置非阻塞
 
+	//创建eio对象，msg_socket_ops里面保存着事件处理回调函数
 	eio_obj = eio_obj_create(fd, &msg_socket_ops, (void *)job);
-	job->msg_handle = eio_handle_create(0);
-	eio_new_initial_obj(job->msg_handle, eio_obj);
+	job->msg_handle = eio_handle_create(0);//创建job->msg_handle
+	eio_new_initial_obj(job->msg_handle, eio_obj);//将eio对象添加到job->msg_handle，注册
 
-	slurm_thread_create(&job->msgid, _msg_thr_internal, job);
+	slurm_thread_create(&job->msgid, _msg_thr_internal, job);//创建内部消息处理线程
 
 	return SLURM_SUCCESS;
 }
@@ -283,7 +289,7 @@ static void _wait_for_connections(void)
 	slurm_mutex_lock(&message_lock);
 	ts.tv_sec = time(NULL) + STEPD_MESSAGE_COMP_WAIT;
 	while (message_connections > 0 && rc == 0)
-		rc = pthread_cond_timedwait(&message_cond, &message_lock, &ts);
+		rc = pthread_cond_timedwait(&message_cond, &message_lock, &ts);//等待message_cond，_handle_accept()
 
 	slurm_mutex_unlock(&message_lock);
 }
@@ -341,7 +347,7 @@ _msg_socket_accept(eio_obj_t *obj, List objs)
 	}
 
 	slurm_mutex_lock(&message_lock);
-	message_connections++;
+	message_connections++;//此处mutex锁是否可以优化成原子操作，效率有多大提升？
 	slurm_mutex_unlock(&message_lock);
 
 	fd_set_close_on_exec(fd);
@@ -350,6 +356,7 @@ _msg_socket_accept(eio_obj_t *obj, List objs)
 	param = xmalloc(sizeof(struct request_params));
 	param->fd = fd;
 	param->job = job;
+	//创建线程_handle_accept处理accept事件，将fd和job作为参数传递给_handle_accept
 	slurm_thread_create_detached(NULL, _handle_accept, param);
 
 	debug3("Leaving _msg_socket_accept");
@@ -360,6 +367,7 @@ static void *
 _handle_accept(void *arg)
 {
 	/*struct request_params *param = (struct request_params *)arg;*/
+	//取出fd和job
 	int fd = ((struct request_params *)arg)->fd;
 	stepd_step_rec_t *job = ((struct request_params *)arg)->job;
 	int req;
@@ -415,7 +423,7 @@ _handle_accept(void *arg)
 	safe_write(fd, &rc, sizeof(int));
 
 	while (1) {
-		rc = _handle_request(fd, job, uid, gid);
+		rc = _handle_request(fd, job, uid, gid);//轮询处理
 		if (rc != SLURM_SUCCESS)
 			break;
 	}
@@ -425,7 +433,7 @@ _handle_accept(void *arg)
 
 	slurm_mutex_lock(&message_lock);
 	message_connections--;
-	slurm_cond_signal(&message_cond);
+	slurm_cond_signal(&message_cond);//触发_wait_for_connections()
 	slurm_mutex_unlock(&message_lock);
 
 	debug3("Leaving  _handle_accept");
@@ -906,10 +914,10 @@ _handle_notify_job(int fd, stepd_step_rec_t *job, uid_t uid)
 	debug3("_handle_notify_job for job %u.%u",
 	       job->jobid, job->stepid);
 
-	safe_read(fd, &len, sizeof(int));
+	safe_read(fd, &len, sizeof(int));//1.接受信息长度
 	if (len) {
 		message = xmalloc (len);
-		safe_read(fd, message, len); /* '\0' terminated */
+		safe_read(fd, message, len); /* '\0' terminated *///2.接受信息包
 	}
 
 	debug3("  uid = %d", uid);
@@ -924,7 +932,7 @@ _handle_notify_job(int fd, stepd_step_rec_t *job, uid_t uid)
 	xfree(message);
 
 done:
-	/* Send the return code */
+	/* 3.发送返回码 */
 	safe_write(fd, &rc, sizeof(int));
 	xfree(message);
 	return SLURM_SUCCESS;

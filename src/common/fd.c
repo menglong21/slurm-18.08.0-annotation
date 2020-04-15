@@ -58,8 +58,7 @@ strong_alias(fd_set_nonblocking,slurm_fd_set_nonblocking);
 static int fd_get_lock(int fd, int cmd, int type);
 static pid_t fd_test_lock(int fd, int type);
 
-//FD_CLOEXEC:使用execl执行的子进程中，此描述符被关闭，不能再使用它，
-//但是在使用fork调用的子进程中，此描述符并不关闭，仍可使用。
+//设置fd执行时关闭
 //https://www.cnblogs.com/embedded-linux/p/6753617.html
 void fd_set_close_on_exec(int fd)
 {

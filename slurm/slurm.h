@@ -157,7 +157,7 @@ typedef struct sbcast_cred sbcast_cred_t;		/* opaque data type */
 #define NO_VAL16   (0xfffe)//16位数
 #define NO_VAL     (0xfffffffe)
 #define NO_VAL64   (0xfffffffffffffffe)
-#define MAX_TASKS_PER_NODE 512
+#define MAX_TASKS_PER_NODE 512//每个节点只允许执行MAX_TASKS_PER_NODE个任务
 #define MAX_JOB_ID (0x03FFFFFF) /* bits 0-25 */
 #define MAX_FED_CLUSTERS 63
 
@@ -270,7 +270,7 @@ enum job_states {
  * system efficiency */
 enum job_state_reason {
 /* Reasons for job to be pending */
-	WAIT_NO_REASON = 0,	/* not set or job not pending */
+	WAIT_NO_REASON = 0,	/* not set or job not pending未设置或作业未挂起 */
 	WAIT_PRIORITY,		/* higher priority jobs exist */
 	WAIT_DEPENDENCY,	/* dependent job has not completed */
 	WAIT_RESOURCES,		/* required resources not available */
@@ -539,14 +539,14 @@ enum job_acct_types {
 	JOB_TERMINATED
 };
 
-/* Partition state flags */
-#define PARTITION_SUBMIT	0x01	/* Allow job submission to partition */
-#define PARTITION_SCHED 	0x02	/* Allow job startup from partition */
+/* 分区状态标志位*/
+#define PARTITION_SUBMIT	0x01	/* 允许作业提交到分区*/
+#define PARTITION_SCHED 	0x02	/* 允许从分区启动作业*/
 
 /* Actual partition states based upon state flags */
-#define PARTITION_DOWN		(PARTITION_SUBMIT)
-#define PARTITION_UP		(PARTITION_SUBMIT | PARTITION_SCHED)
-#define PARTITION_DRAIN		(PARTITION_SCHED)
+#define PARTITION_DOWN		(PARTITION_SUBMIT)//能提交不能调度
+#define PARTITION_UP		(PARTITION_SUBMIT | PARTITION_SCHED)//既能提交又能调度，0x03
+#define PARTITION_DRAIN		(PARTITION_SCHED)//能调度不能提交
 #define PARTITION_INACTIVE	0x00
 
 /* Partition enforce flags for jobs */
@@ -932,8 +932,8 @@ enum ctx_keys {
 	SLURM_STEP_CTX_DEF_CPU_BIND_TYPE
 };
 
-/* CR_CPU, CR_SOCKET and CR_CORE are mututally exclusive
- * CR_MEMORY may be added to any of the above values or used by itself
+/* CR_CPU, CR_SOCKET and CR_CORE are 互斥
+ * CR_MEMORY 可以添加到任何上述值中或单独使用
  * CR_ONE_TASK_PER_CORE may also be added to any of the above values */
 #define CR_CPU		0x0001	/* Resources are shared down to the level of
 				 * logical processors which can be socket,
@@ -941,9 +941,7 @@ enum ctx_keys {
 #define CR_SOCKET	0x0002	/* Resources are shared down to the socket
 				 * level. Jobs will not be co-allocated
 				 * within a socket. */
-#define CR_CORE		0x0004	/* Resources are shared down to the core level.
-				 * Jobs will not be co-allocated within a
-				 * core. */
+#define CR_CORE		0x0004	/* 资源共享到cpu核心这一层。作业将不会在核心内共同分配。*/
 #define CR_BOARD	0x0008	/* Resources are shared down to the board
 				 * level. Jobs will not be co-allocated
 				 * within a board. */
@@ -1410,16 +1408,16 @@ typedef struct job_descriptor {	/* 用于提交、分配和更新请求 */
 				 * NOTE: Also used for update flags, see
 				 * ALLOC_SID_* flags */
 	uint32_t argc;		/* 脚本的参数数量 */
-	char **argv;		/* 脚本参数 */
+	char **argv;		/* 提交命令的参数 */
 	char *array_inx;	/* 作业数组索引值 */
 	void *array_bitmap;	/* NOTE: Set by slurmctld */
 	char *batch_features;	/* features required for batch script's node */
 	time_t begin_time;	/* delay initiation until this time */
 	uint32_t bitflags;      /* bitflags */
 	char *burst_buffer;	/* burst buffer specifications */
-	uint16_t ckpt_interval;	/* periodically checkpoint this job */
-	char *ckpt_dir;	 	/* directory to store checkpoint images */
-	char *clusters;		/* cluster names used for multi-cluster jobs */
+	uint16_t ckpt_interval;	/* 周期性的检查此作业	*/
+	char *ckpt_dir;	 	/* 存储 checkpoint images 的目录*/
+	char *clusters;		/* 用于多群集作业的群集名称 */
 	char *cluster_features;	/* required cluster feature specification,
 				 * default NONE */
 	char *comment;		/* arbitrary comment */
@@ -1445,12 +1443,11 @@ typedef struct job_descriptor {	/* 用于提交、分配和更新请求 */
 	time_t end_time;	/* time by which job must complete, used for
 				 * job update only now, possible deadline
 				 * scheduling in the future */
-	char **environment;	/* environment variables to set for job,
+	char **environment;	/* 要为作业设置的环境变量	,例如HOSTNAME=a04c4m04
 				 *  name=value pairs, one per line */
 	uint32_t env_size;	/* element count in environment */
 	char *extra;		/* unused */
-	char *exc_nodes;	/* comma separated list of nodes excluded
-				 * from job's allocation, default NONE */
+	char *exc_nodes;	/* 从作业分配中排除的节点的逗号分隔列表，默认为NONE	*/
 	char *features;		/* required feature specification,
 				 * default NONE */
 	uint64_t fed_siblings_active; /* Bitmap of active fed sibling ids */
@@ -1458,7 +1455,7 @@ typedef struct job_descriptor {	/* 用于提交、分配和更新请求 */
 	uint32_t group_id;	/* group to assume, if run as root. */
 	uint16_t immediate;	/* 1 if allocate to run or fail immediately,
 				 * 0 if to be queued awaiting resources */
-	uint32_t job_id;	/* job ID, default set by Slurm */
+	uint32_t job_id;	/* 作业ID，默认由Slurm设置 */
 	char * job_id_str;      /* string representation of the jobid */
 	uint16_t kill_on_node_fail; /* 1 if node failure to kill job,
 				     * 0 otherwise,default=1 */
@@ -1469,11 +1466,11 @@ typedef struct job_descriptor {	/* 用于提交、分配和更新请求 */
 	char *mem_bind;		/* binding map for map/mask_cpu */
 	uint16_t mem_bind_type;	/* see mem_bind_type_t */
 	char *mem_per_tres;	/* semicolon delimited list of TRES=# values */
-	char *name;		/* name of the job, default "" */
+	char *name;		/* 作业名字, default "" */
 	char *network;		/* network use spec */
 	uint32_t nice;		/* requested priority change,
 				 * NICE_OFFSET == no change */
-	uint32_t num_tasks;	/* number of tasks to be started,
+	uint32_t num_tasks;	/* 要启动的任务数量, -n指定
 				 * for batch only */
 	uint8_t open_mode;	/* out/err open mode truncate or append,
 				 * see OPEN_MODE_* */
@@ -1481,7 +1478,7 @@ typedef struct job_descriptor {	/* 用于提交、分配和更新请求 */
 	uint16_t other_port;	/* port to send various notification msg to */
 	uint8_t overcommit;	/* over subscribe resources, for batch only */
 	uint32_t pack_job_offset; /* pack job index */
-	char *partition;	/* name of requested partition,
+	char *partition;	/* 请求的分区名称,
 				 * default in Slurm config */
 	uint16_t plane_size;	/* plane size when task_dist =
 				   SLURM_DIST_PLANE */
@@ -1495,11 +1492,10 @@ typedef struct job_descriptor {	/* 用于提交、分配和更新请求 */
 	uint16_t reboot;	/* force node reboot before startup */
 	char *resp_host;	/* NOTE: Set by slurmctld */
 	uint16_t restart_cnt;	/* count of job restarts */
-	char *req_nodes;	/* comma separated list of required nodes
-				 * default NONE */
+	char *req_nodes;	/* 逗号分隔的所需节点列表默认为NONE	*/
 	uint16_t requeue;	/* enable or disable job requeue option */
-	char *reservation;	/* name of reservation to use */
-	char *script;		/* the actual job script, default NONE */
+	char *reservation;	/* 预约名称 */
+	char *script;		/* 实际作业脚本所有内容, default NONE */
 	void *script_buf;	/* job script as mmap buf */
 	uint16_t shared;	/* 2 if the job can only share nodes with other
 				 *   jobs owned by that user,
@@ -1530,44 +1526,36 @@ typedef struct job_descriptor {	/* 用于提交、分配和更新请求 */
 				 * (eg. KILL_JOB_BATCH) */
 	uint16_t warn_signal;	/* signal to send when approaching end time */
 	uint16_t warn_time;	/* time before end to send signal (seconds) */
-	char *work_dir;		/* pathname of working directory */
+	char *work_dir;		/* 工作目录的路径名 */
 
-	/* job constraints: */
-	uint16_t cpus_per_task;	/* number of processors required for
-				 * each task */
-	uint32_t min_cpus;	/* minimum number of processors required,
-				 * default=0 */
-	uint32_t max_cpus;	/* maximum number of processors required,
-				 * default=0 */
-	uint32_t min_nodes;	/* minimum number of nodes required by job,
-				 * default=0 */
-	uint32_t max_nodes;	/* maximum number of nodes usable by job,
-				 * default=0 */
+	/* 作业限制: */
+	uint16_t cpus_per_task;	/* 每个任务所需的处理器数量	*/
+	uint32_t min_cpus;	/* 所需处理器的最小数量, default=0 */
+	uint32_t max_cpus;	/* 所需处理器的最大数量, default=0，4294967294？*/
+	uint32_t min_nodes;	/* 作业所需的最小节点数, default=0 */
+	uint32_t max_nodes;	/* 作业所需的最大节点数, default=0*/
 	uint16_t boards_per_node; /* boards per node required by job  */
 	uint16_t sockets_per_board;/* sockets per board required by job */
 	uint16_t sockets_per_node;/* sockets per node required by job */
 	uint16_t cores_per_socket;/* cores per socket required by job */
 	uint16_t threads_per_core;/* threads per core required by job */
 	uint16_t ntasks_per_node;/* number of tasks to invoke on each node */
-	uint16_t ntasks_per_socket;/* number of tasks to invoke on
-				    * each socket */
+	uint16_t ntasks_per_socket;/* number of tasks to invoke on each socket */
 	uint16_t ntasks_per_core;/* number of tasks to invoke on each core */
 	uint16_t ntasks_per_board;/* number of tasks to invoke on each board */
-	uint16_t pn_min_cpus;    /* minimum # CPUs per node, default=0 */
-	uint64_t pn_min_memory;  /* minimum real memory per node OR
+	uint16_t pn_min_cpus;    /* 每个节点最少CPU数, default=0 */
+	uint64_t pn_min_memory;  /* 每个节点的最小实际内存 OR
 				  * real memory per CPU | MEM_PER_CPU,
 				  * default=0 (no limit) */
-	uint32_t pn_min_tmp_disk;/* minimum tmp disk per node,
-				  * default=0 */
+	uint32_t pn_min_tmp_disk;/* 每个节点最小tmp磁盘, default=0 */
 
 	uint32_t req_switch;    /* Minimum number of switches */
 	dynamic_plugin_data_t *select_jobinfo; /* opaque data type,
 					   * Slurm internal use only */
-	char *std_err;		/* pathname of stderr */
-	char *std_in;		/* pathname of stdin */
-	char *std_out;		/* pathname of stdout */
-	uint64_t *tres_req_cnt; /* used internally in the slurmctld,
-				   DON'T PACK */
+	char *std_err;		/* stderr全路径，一般作业脚本指定 */
+	char *std_in;		/* stdin全路径，一般作业脚本指定 */
+	char *std_out;		/* stdout全路径，一般作业脚本指定 */
+	uint64_t *tres_req_cnt; /* 在slurmctld内部使用,	   DON'T PACK */
 	uint32_t wait4switch;   /* Maximum time to wait for minimum switches */
 	char *wckey;            /* wckey for job */
 	uint16_t x11;		/* --x11 flags */
@@ -2265,8 +2253,7 @@ typedef struct job_defaults {
 	uint64_t value;	/* Value */
 } job_defaults_t;
 
-/* Current partition state information and used to set partition options
- * using slurm_update_partition(). */
+/* 当前分区状态信息，用于使用slurm_update_partition()设置分区选项 */
 #define PART_FLAG_DEFAULT	0x0001	/* Set if default partition */
 #define PART_FLAG_HIDDEN	0x0002	/* Set if partition is hidden */
 #define PART_FLAG_NO_ROOT	0x0004	/* Set if user root jobs disabled */
@@ -2585,13 +2572,12 @@ typedef struct reservation_name_msg {
 #define DEBUG_FLAG_FEDR         0x0001000000000000 /* Federation debug */
 #define DEBUG_FLAG_HETERO_JOBS  0x0002000000000000 /* Heterogeneous job debug */
 
-#define PREEMPT_MODE_OFF	0x0000	/* disable job preemption */
+#define PREEMPT_MODE_OFF	0x0000	/* 禁用作业抢占*/
 #define PREEMPT_MODE_SUSPEND	0x0001	/* suspend jobs to preempt */
 #define PREEMPT_MODE_REQUEUE	0x0002	/* requeue or kill jobs to preempt */
-#define PREEMPT_MODE_CHECKPOINT	0x0004	/* checkpoint job to preempt,
-					 * no automatic restart */
-#define PREEMPT_MODE_CANCEL	0x0008	/* always cancel the job */
-#define PREEMPT_MODE_GANG	0x8000	/* enable gang scheduling */
+#define PREEMPT_MODE_CHECKPOINT	0x0004	/* checkpoint job to preempt,无自动重启 */
+#define PREEMPT_MODE_CANCEL	0x0008	/* 总是取消作业 */
+#define PREEMPT_MODE_GANG	0x8000	/* 使能gang调度  */
 
 #define RECONFIG_KEEP_PART_INFO 0x0001 /* keep dynamic partition info on scontrol reconfig */
 #define RECONFIG_KEEP_PART_STAT 0x0002 /* keep dynamic partition state on scontrol reconfig */
@@ -2820,7 +2806,7 @@ typedef struct slurm_ctl_conf {
 	char *slurmctld_addr;	/* Address used for communications to the
 				 * currently active slurmctld daemon */
 	uint16_t slurmctld_debug; /* slurmctld logging level */
-	char *slurmctld_logfile;/* where slurmctld error log gets written */
+	char *slurmctld_logfile;/* slurmctld日志路径 */
 	char *slurmctld_pidfile;/* where to put slurmctld pidfile         */
 	char *slurmctld_plugstack;/* generic slurmctld plugins */
 	void *slurmctld_plugstack_conf ;/* generic slurmctld plugins configs */

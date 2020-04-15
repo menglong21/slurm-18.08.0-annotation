@@ -82,7 +82,7 @@ extern void run_dbd_backup(void)
 			break;
 		} else if (!have_control && writeable <= 0) {
 			have_control = true;
-			info("Taking Control");
+			info("Taking Control");//备用控制器接管控制
 			break;
 		}
 

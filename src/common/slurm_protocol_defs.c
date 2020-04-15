@@ -93,7 +93,7 @@ static void  _free_all_reservations(reserve_info_msg_t *msg);
 static void _free_all_step_info (job_step_info_response_msg_t *msg);
 
 /*
- * slurm_msg_t_init - initialize a slurm message
+ * slurm_msg_t_init - initialize a slurm message初始化
  * OUT msg - pointer to the slurm_msg_t structure which will be initialized
  */
 extern void slurm_msg_t_init(slurm_msg_t *msg)

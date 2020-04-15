@@ -1013,15 +1013,19 @@ extern int schedule(uint32_t job_limit)
 	struct timeval now;
 	long delta_t;
 
+	//禁用调度只有两种情况（sched启用no_backup_scheduling，或federation场景下集群状态为INACTIVE）
 	if (slurmctld_config.scheduling_disabled)
 		return 0;
 
 	gettimeofday(&now, NULL);
 	if (sched_last.tv_sec == 0) {
+		//初始化场景，第一次检查启用调度
 		delta_t = sched_min_interval;
 	} else if (sched_running) {
+		//正在调度中，改为0禁止再次调度
 		delta_t = 0;
 	} else {
+		//正常调度检查，更新时间差
 		delta_t  = (now.tv_sec  - sched_last.tv_sec) * 1000000;
 		delta_t +=  now.tv_usec - sched_last.tv_usec;
 	}
@@ -1094,7 +1098,7 @@ static void *_sched_agent(void *args)
 	}
 
 	job_cnt = schedule(1);
-	slurm_mutex_lock(&sched_mutex);
+	slurm_mutex_lock(&sched_mutex);//此处锁可以优化成原子操作
 	sched_pend_thread = 0;
 	slurm_mutex_unlock(&sched_mutex);
 	if (job_cnt) {
@@ -1522,7 +1526,7 @@ static int _schedule(uint32_t job_limit)
 		slurmctld_diag_stats.schedule_queue_len = list_count(job_list);
 		job_iterator = list_iterator_create(job_list);
 	} else {
-		job_queue = build_job_queue(false, false);
+		job_queue = build_job_queue(false, false);//创建准备调度的作业队列
 		slurmctld_diag_stats.schedule_queue_len = list_count(job_queue);
 		sort_job_queue(job_queue);
 	}
@@ -1855,7 +1859,7 @@ next_task:
 			goto skip_start;
 		}
 
-		error_code = select_nodes(job_ptr, false, NULL, NULL, false);
+		error_code = select_nodes(job_ptr, false, NULL, NULL, false);//为作业实际分配节点，重要
 
 		if (error_code == SLURM_SUCCESS) {
 			/*
@@ -2293,7 +2297,7 @@ static batch_job_launch_msg_t *_build_launch_job_msg(struct job_record *job_ptr,
 	launch_msg_ptr->spank_job_env = xduparray(job_ptr->spank_job_env_size,
 						  job_ptr->spank_job_env);
 	launch_msg_ptr->environment = get_job_env(job_ptr,
-						  &launch_msg_ptr->envc);
+						  &launch_msg_ptr->envc);//从hash.x/job.$jobid/environment文件读取环境变量
 	if (launch_msg_ptr->environment == NULL) {
 		error("%s: environment missing or corrupted aborting %pJ",
 		      __func__, job_ptr);

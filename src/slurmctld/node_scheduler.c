@@ -88,21 +88,22 @@
 #define _DEBUG	0
 #define MAX_FEATURES  32	/* max exclusive features "[fs1|fs2]"=2 */
 
-struct node_set {		/* set of nodes with same configuration */
+struct node_set {		/* 具有相同配置的节点集 */
 	uint16_t cpus_per_node;	/* NOTE: This is the minimum count,
+				 这是最小计数，如果fastschedule==0，
+				 那么同一配置行（slurm.conf）中的单个节点实际上可以具有不同的CPU计数。
 				 * if FastSchedule==0 then individual
 				 * nodes within the same configuration
 				 * line (in slurm.conf) can actually
 				 * have different CPU counts */
-	char     *features;		/* Node features */
+	char     *features;			/* Node features */
 	bitstr_t *feature_bits;		/* XORed feature's position */
-	uint32_t flags;			/* See NODE_SET_* below */
-	bitstr_t *my_bitmap;		/* Node bitmap */
-	uint32_t node_cnt;		/* Node count */
-	uint32_t node_weight;		/* Node weight */
-	uint64_t real_memory;		/* Real memory on node */
-	uint64_t sched_weight;		/* Scheduling weight, based upon
-					 * node_weight and flags */
+	uint32_t flags;				/* See NODE_SET_* below */
+	bitstr_t *my_bitmap;		/* 节点位图 */
+	uint32_t node_cnt;			/* 节点计数 */
+	uint32_t node_weight;		/* 节点权重 */
+	uint64_t real_memory;		/* 节点实际内存 */
+	uint64_t sched_weight;		/* 调度权重, 基于node_weight和flags */
 };
 
 #define NODE_SET_NOFLAG		0x00
@@ -400,7 +401,7 @@ static int _build_gres_alloc_string(struct job_record *job_ptr)
 }
 
 /*
- * allocate_nodes - change state of specified nodes to NODE_STATE_ALLOCATED
+ * allocate_nodes - 将指定节点的状态更改为NODE_STATE_ALLOCATED
  *	also claim required licenses and resources reserved by accounting
  *	policy association
  * IN job_ptr - job being allocated resources
@@ -413,7 +414,7 @@ extern void allocate_nodes(struct job_record *job_ptr)
 
 	for (i = 0, node_ptr = node_record_table_ptr; i < node_record_count;
 	     i++, node_ptr++) {
-		if (!bit_test(job_ptr->node_bitmap, i))
+		if (!bit_test(job_ptr->node_bitmap, i))//测试节点是不是在作业分配的节点位图中
 			continue;
 
 		if (IS_NODE_CLOUD(node_ptr)) {
@@ -421,7 +422,7 @@ extern void allocate_nodes(struct job_record *job_ptr)
 			if (IS_NODE_POWER_SAVE(node_ptr))
 				has_cloud_power_save = true;
 		}
-		make_node_alloc(node_ptr, job_ptr);
+		make_node_alloc(node_ptr, job_ptr);//找到节点则将节点设置为分配状态
 	}
 
 	last_node_update = time(NULL);
@@ -894,51 +895,54 @@ extern bitstr_t *build_active_feature_bitmap2(char *reboot_features)
 	return active_node_bitmap;
 }
 
-/*
+/* 根据以下三个输入参数确定作业是否可以与其他作业共享节点：
  * Decide if a job can share nodes with other jobs based on the
  * following three input parameters:
  *
- * IN user_flag - may be 0 (do not share nodes), 1 (node sharing allowed),
+ * IN user_flag - may be 0 (不共享节点), 1 (允许节点共享),
  *                or any other number means "don't care"
- * IN part_max_share - current partition's node sharing policy
- * IN cons_res_flag - 1:select/cons_res, 2:select/cons_tres, 0:otherwise
+ * IN part_max_share - current partition's node sharing policy 当前分区的节点共享策略,分区配置项OverSubscribe
+ * IN cons_res_flag - 1:select/cons_res, 2:select/cons_tres, 0:otherwise 资源选择插件select配置项
  *
  *
  * The followed table details the node SHARED state for the various scenarios
- *
- *					part=	part=	part=	part=
- *	cons_res	user_request	EXCLUS	NO	YES	FORCE
+ * 下表详细说明了各种方案的节点SHARED状态
+ *								part=	part=	part=	part=
+ *	cons_res	user_request	EXCLUS	NO		YES		FORCE
  *	--------	------------	------	-----	-----	-----
- *	no		default		whole	whole	whole	whole/O
- *	no		exclusive	whole	whole	whole	whole/O
- *	no		share=yes	whole	whole	whole/O	whole/O
- *	yes		default		whole	share	share	share/O
- *	yes		exclusive	whole	whole	whole	whole/O
- *	yes		share=yes	whole	share	share/O	share/O
+ *	no			default			whole	whole	whole	whole/O
+ *	no			exclusive		whole	whole	whole	whole/O
+ *	no			share=yes		whole	whole	whole/O	whole/O
+ *	yes			default			whole	share	share	share/O
+ *	yes			exclusive		whole	whole	whole	whole/O
+ *	yes			share=yes		whole	share	share/O	share/O
  *
- * whole  = entire node is allocated to the job
- * share  = less than entire node may be allocated to the job
- * -/O    = resources can be over-committed (e.g. gang scheduled)
+ * whole  = entire node is allocated to the job 整个节点分配给作业
+ * share  = less than entire node may be allocated to the job可以将少于整个节点分配给作业
+ * -/O    = resources can be over-committed (e.g. gang scheduled) 资源可以过度提交
  *
+ * 分区配置项OverSubscribe
  * part->max_share:
  *	&SHARED_FORCE 	= FORCE
  *	0		= EXCLUSIVE
  *	1		= NO
  *	> 1		= YES
- *
+ *	
+ * 用户user_flag，sbatch -s, --oversubscribe
  * job_ptr->details->share_res:
  *	0		= default or share=no
  *	1		= share=yes
  *
+ * 用户user_flag，sbatch --exclusive
  * job_ptr->details->whole_node:
- *				  0	= default
+ *				  		0	= default
  *	WHOLE_NODE_REQUIRED	= 1	= exclusive
  *	WHOLE_NODE_USER		= 2	= user
  *	WHOLE_NODE_MCS		= 3	= mcs
  *
  * Return values:
- *	0 = requires idle nodes
- *	1 = can use non-idle nodes
+ *	0 = requires idle nodes 需要空闲节点（独占）
+ *	1 = can use non-idle nodes 可以使用非空闲节点（共享）
  */
 static int
 _resolve_shared_status(struct job_record *job_ptr, uint16_t part_max_share,
@@ -948,6 +952,7 @@ _resolve_shared_status(struct job_record *job_ptr, uint16_t part_max_share,
 		return 0;
 
 	/* no sharing if partition Shared=EXCLUSIVE */
+	//不共享节点如果分区配置为EXCLUSIVE
 	if (part_max_share == 0) {
 		job_ptr->details->whole_node = 1;
 		job_ptr->details->share_res = 0;
@@ -955,15 +960,16 @@ _resolve_shared_status(struct job_record *job_ptr, uint16_t part_max_share,
 	}
 
 	/* sharing if partition Shared=FORCE with count > 1 */
+	//共享节点如果分区配置OverSubscribe=FORCE并且值大于1，配置项Shared已经被OverSubscribe取代
 	if ((part_max_share & SHARED_FORCE) &&
 	    ((part_max_share & (~SHARED_FORCE)) > 1)) {
 		job_ptr->details->share_res = 1;
 		return 1;
 	}
-
-	if (cons_res_flag) {
-		if ((job_ptr->details->share_res  == 0) ||
-		    (job_ptr->details->whole_node == WHOLE_NODE_REQUIRED)) {
+	
+	if (cons_res_flag) {//资源选择select插件标志
+		if ((job_ptr->details->share_res  == 0) ||//sbatch -s, --oversubscribe
+		    (job_ptr->details->whole_node == WHOLE_NODE_REQUIRED)) {//sbatch --exclusive,优先级小于分区OverSubscribe
 			job_ptr->details->share_res = 0;
 			return 0;
 		}
@@ -1089,6 +1095,9 @@ static void _filter_by_node_feature(struct job_record *job_ptr,
  * and adding those selected nodes to the job's required node list.
  * Upon completion, return job's requirements to match the values
  * which were in effect upon calling this function.
+ * 如果作业具有所需的功能计数，则使用多次调用_pick_best_nodes()
+ * 并将那些选定的节点添加到作业的所需节点列表中来累积这些所需的资源。
+ * 完成后，返回作业的要求以匹配调用此函数时生效的值。
  * Input and output are the same as _pick_best_nodes().
  */
 static int
@@ -1117,7 +1126,7 @@ _get_req_features(struct node_set *node_set_ptr, int node_set_size,
 	uint32_t powercap;
 	int layout_power;
 
-	/*
+	/* 这段处理预约
 	 * Mark nodes reserved for other jobs as off limit for this job.
 	 * If the job has a reservation, we've already limited the contents
 	 * of select_bitmap to those nodes. Assume node reboot required
@@ -1184,7 +1193,7 @@ _get_req_features(struct node_set *node_set_ptr, int node_set_size,
 	mcs_select = slurm_mcs_get_select(job_ptr);
 	filter_by_node_mcs(job_ptr, mcs_select, share_node_bitmap);
 
-	/* save job and request state */
+	/* 保存作业和请求状态 */
 	saved_min_nodes = min_nodes;
 	saved_req_nodes = req_nodes;
 	saved_job_min_nodes = job_ptr->details->min_nodes;
@@ -1201,9 +1210,9 @@ _get_req_features(struct node_set *node_set_ptr, int node_set_size,
 	job_ptr->details->min_cpus = 1;
 	tmp_node_set_ptr = xmalloc(sizeof(struct node_set) * node_set_size * 2);
 
-	/* Accumulate nodes with required feature counts. */
+	/* Accumulate nodes with required feature counts.累积具有所需功能计数的节点 */
 	preemptee_candidates = slurm_find_preemptable_jobs(job_ptr);
-	if (job_ptr->details->feature_list) {
+	if (job_ptr->details->feature_list) {//一般为空，不走这边
 		ListIterator feat_iter;
 		job_feature_t *feat_ptr;
 		int last_paren_cnt = 0, last_paren_opt = FEATURE_OP_AND;
@@ -1446,7 +1455,7 @@ _get_req_features(struct node_set *node_set_ptr, int node_set_size,
 		req_nodes = MAX(min_nodes, req_nodes);
 		if (req_nodes > max_nodes)
 			error_code = ESLURM_REQUESTED_NODE_CONFIG_UNAVAILABLE;
-	} else {
+	} else {//走这儿，恢复保存的作业和请求状态信息
 		min_nodes = saved_min_nodes;
 		req_nodes = saved_req_nodes;
 		job_ptr->details->min_cpus = saved_min_cpus;
@@ -1464,7 +1473,7 @@ _get_req_features(struct node_set *node_set_ptr, int node_set_size,
 	xfree(tmp_node_set_ptr);
 	if (error_code == SLURM_SUCCESS) {
 		FREE_NULL_LIST(*preemptee_job_list);
-		error_code = _pick_best_nodes(node_set_ptr, node_set_size,
+		error_code = _pick_best_nodes(node_set_ptr, node_set_size,//重要
 				select_bitmap, job_ptr, part_ptr, min_nodes,
 				max_nodes, req_nodes, test_only,
 				preemptee_candidates, preemptee_job_list,
@@ -1481,7 +1490,7 @@ _get_req_features(struct node_set *node_set_ptr, int node_set_size,
 }
 #endif
 
-	/*
+	/*这段过
 	 * PowerCapping logic : now that we have the list of selected nodes
 	 * we need to ensure that using this nodes respects the amount of
 	 * available power as returned by the capping logic.
@@ -1704,9 +1713,10 @@ static void _sync_node_weight(struct node_set *node_set_ptr, int node_set_size)
 /*
  * _pick_best_nodes - from a weight order list of all nodes satisfying a
  *	job's specifications, select the "best" for use
- * IN node_set_ptr - pointer to node specification information
+ * 从满足作业规范的所有节点的权重顺序列表中，选择要使用的“最佳”节点 
+ * IN node_set_ptr - pointer to node specification information 指向节点规范信息的指针 
  * IN node_set_size - number of entries in records pointed to by node_set_ptr
- * OUT select_bitmap - returns bitmap of selected nodes, must FREE_NULL_BITMAP
+ * OUT select_bitmap - 返回选定节点的位图 , must FREE_NULL_BITMAP
  * IN job_ptr - pointer to job being scheduled
  * IN part_ptr - pointer to the partition in which the job is being scheduled
  * IN min_nodes - minimum count of nodes required by the job
@@ -1730,18 +1740,19 @@ static void _sync_node_weight(struct node_set *node_set_ptr, int node_set_size)
  * NOTE: the caller must FREE_NULL_BITMAP memory pointed to by select_bitmap
  * Notes: The algorithm is
  *	1) If required node list is specified, determine implicitly required
- *	   processor and node count
+ *	   processor and node count如果required node list被指定，则隐式确定了所需的处理器和节点数量
  *	2) Determine how many disjoint required "features" are represented
- *	   (e.g. "FS1|FS2|FS3")
+ *	   (e.g. "FS1|FS2|FS3") 确定表示需要多少不相交的“特征”
  *	3) For each feature: find matching node table entries, identify nodes
  *	   that are up and available (idle or shared) and add them to a bit
- *	   map
+ *	   map 对于每个功能：查找匹配的节点表条目，标识启动和可用的节点（空闲或共享）并将它们添加到位图
  *	4) Select_g_job_test() to select the "best" of those based upon
- *	   topology and/or workload
+ *	   topology and/or workload 调用Select_g_job_test()以根据拓扑和/或工作负载选择其中的“最佳”
  *	5) If request can't be satisfied now, execute select_g_job_test()
  *	   against the list of nodes that exist in any state (perhaps DOWN
  *	   DRAINED or ALLOCATED) to determine if the request can
- *         ever be satisfied.
+ *         ever be satisfied.如果现在无法满足请求，则对任何状态（可能是DOWN DRAINED或ALLOCATED）
+ * 		中存在的节点列表执行select_g_job_test（），以确定是否可以满足请求。
  */
 static int
 _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
@@ -1790,10 +1801,10 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 	uint64_t smallest_min_mem = INFINITE64;
 	uint64_t orig_req_mem = job_ptr->details->pn_min_memory;
 
-	if (test_only)
-		select_mode = SELECT_MODE_TEST_ONLY;
+	if (test_only)//创建作业时为true
+		select_mode = SELECT_MODE_TEST_ONLY;//1创建作业
 	else
-		select_mode = SELECT_MODE_RUN_NOW;
+		select_mode = SELECT_MODE_RUN_NOW;//0调度执行作业
 
 	if ((job_ptr->details->min_nodes == 0) &&
 	    (job_ptr->details->max_nodes == 0)) {
@@ -1808,7 +1819,7 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 					      exc_core_bitmap);
 
 		if (pick_code == SLURM_SUCCESS) {
-			*select_bitmap = avail_bitmap;
+			*select_bitmap = avail_bitmap;//选择成功，可用节点保存在avail_bitmap，由select_bitmap返回
 			return SLURM_SUCCESS;
 		} else {
 			bit_free(avail_bitmap);
@@ -1823,7 +1834,7 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 	if (cr_enabled == NO_VAL) {
 		cr_enabled = 0;	/* select/linear and others are no-ops */
 		error_code = select_g_get_info_from_plugin(SELECT_CR_PLUGIN,
-							   NULL, &cr_enabled);
+							   NULL, &cr_enabled);//从select插件获得cr_enabled值
 		if (error_code != SLURM_SUCCESS) {
 			cr_enabled = NO_VAL;
 			return error_code;
@@ -1834,9 +1845,9 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 	}
 
 	shared = _resolve_shared_status(job_ptr, part_ptr->max_share,
-					cr_enabled);
+					cr_enabled);//确定作业是否可以与其他作业共享节点，重要
 	if (cr_enabled)
-		job_ptr->cr_enabled = cr_enabled; /* CR enabled for this job */
+		job_ptr->cr_enabled = cr_enabled; /* 已为此作业启用Consumable Resources */
 
 	/*
 	 * If job preemption is enabled, then do NOT limit the set of available
@@ -1845,7 +1856,8 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 	preempt_flag = slurm_preemption_enabled();
 
 	if (job_ptr->details->req_node_bitmap) {  /* specific nodes required */
-		/*
+		/* 我们已经确认了所有这些节点都有一个可用的配置，并且在适当的分区中。
+		 * 检查这些节点是否可用于此作业。		 
 		 * We have already confirmed that all of these nodes have a
 		 * usable configuration and are in the proper partition.
 		 * Check that these nodes can be used by this job.
@@ -1917,8 +1929,7 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 	if (single_select_job_test)
 		_sync_node_weight(node_set_ptr, node_set_size);
 	/*
-	 * Accumulate resources for this job based upon its required
-	 * features (possibly with node counts).
+	 * 根据此作业所需的features为其积累资源  (possibly with node counts).
 	 */
 	for (j = min_feature; j <= max_feature; j++) {
 		if (job_ptr->details->req_node_bitmap) {
@@ -2013,7 +2024,7 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 				bit_or(avail_bitmap,
 				       node_set_ptr[i].my_bitmap);
 			} else {
-				avail_bitmap = bit_copy(node_set_ptr[i].
+				avail_bitmap = bit_copy(node_set_ptr[i].//avail_bitmap保存可用节点位图
 							my_bitmap);
 			}
 
@@ -2035,12 +2046,14 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 			    (node_set_ptr[i].sched_weight ==
 			     node_set_ptr[i+1].sched_weight)) {
 				/* Keep accumulating so we can pick the
-				 * most lightly loaded nodes */
+				 * most lightly loaded nodes 继续累积，这样我们就可以选择负载最轻的节点*/
 				continue;
 			}
 
 			/* NOTE: select_g_job_test() is destructive of
-			 * avail_bitmap, so save a backup copy */
+			 * avail_bitmap, so save a backup copy 
+			 * select_g_job_test()会破坏avail_bitmap，所以保存一个备份副本
+			 */
 			backup_bitmap = bit_copy(avail_bitmap);
 			FREE_NULL_LIST(*preemptee_job_list);
 			if (job_ptr->details->req_node_bitmap == NULL)
@@ -2055,7 +2068,7 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 			    ((i+1) < node_set_size)) {
 				FREE_NULL_BITMAP(avail_bitmap);
 				avail_bitmap = backup_bitmap;
-				continue;	/* Keep accumulating nodes */
+				continue;	/* Keep accumulating nodes继续累积节点 */
 			}
 
 			/* Only preempt jobs when all possible nodes are being
@@ -2083,7 +2096,7 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 				preemptee_cand = preemptee_candidates;
 
 			job_ptr->details->pn_min_memory = orig_req_mem;
-			pick_code = select_g_job_test(job_ptr,
+			pick_code = select_g_job_test(job_ptr,//选择成功，可用节点保存在avail_bitmap，由select_bitmap返回
 						      avail_bitmap,
 						      min_nodes,
 						      max_nodes,
@@ -2122,7 +2135,7 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 				}
 				FREE_NULL_BITMAP(total_bitmap);
 				FREE_NULL_BITMAP(possible_bitmap);
-				*select_bitmap = avail_bitmap;
+				*select_bitmap = avail_bitmap;//gdb p bitmap2node_name(*select_bitmap)
 				return SLURM_SUCCESS;
 			} else {
 				tried_sched = true;	/* test failed */
@@ -2161,7 +2174,7 @@ _pick_best_nodes(struct node_set *node_set_ptr, int node_set_size,
 			     (bit_set_count(avail_bitmap) <= max_nodes)) {
 				FREE_NULL_BITMAP(total_bitmap);
 				FREE_NULL_BITMAP(possible_bitmap);
-				*select_bitmap = avail_bitmap;
+				*select_bitmap = avail_bitmap;//gdb p bitmap2node_name(*select_bitmap)
 				return SLURM_SUCCESS;
 			}
 		}
@@ -2500,7 +2513,7 @@ static char *_build_tres_str(struct job_record *job_ptr)
 }
 
 /*
- * select_nodes - select and allocate nodes to a specific job
+ * select_nodes - 选择并分配节点给特定的作业 
  * IN job_ptr - pointer to the job record
  * IN test_only - if set do not allocate nodes, just confirm they
  *	could be allocated now
@@ -2517,9 +2530,13 @@ static char *_build_tres_str(struct job_record *job_ptr)
  *	1) Build a table (node_set_ptr) of nodes with the requisite
  *	   configuration. Each table entry includes their weight,
  *	   node_list, features, etc.
+ *	   用必要的配置构建一个节点表（node_set_ptr）。
+ *	   每个表条目包括其权重、节点列表、功能等。
  *	2) Call _pick_best_nodes() to select those nodes best satisfying
  *	   the request, (e.g. best-fit or other criterion)
+ *	   调用_pick_best_nodes（）以选择最能满足请求的节点
  *	3) Call allocate_nodes() to perform the actual allocation
+ *	   调用allocate_nodes（）以执行实际分配
  */
 extern int select_nodes(struct job_record *job_ptr, bool test_only,
 			bitstr_t **select_node_bitmap, char **err_msg,
@@ -2555,9 +2572,9 @@ extern int select_nodes(struct job_record *job_ptr, bool test_only,
 
 	/* identify partition */
 	if (part_ptr == NULL) {
-		part_ptr = find_part_record(job_ptr->partition);
+		part_ptr = find_part_record(job_ptr->partition);//找到作业要提交的分区
 		xassert(part_ptr);
-		job_ptr->part_ptr = part_ptr;
+		job_ptr->part_ptr = part_ptr;//将找到的分区描述符保存到作业描述符中
 		error("partition pointer reset for %pJ, part %s",
 		      job_ptr, job_ptr->partition);
 	}
@@ -2617,10 +2634,10 @@ extern int select_nodes(struct job_record *job_ptr, bool test_only,
 		return SLURM_SUCCESS;
 	}
 
-	/* build sets of usable nodes based upon their configuration */
+	/* 根据其配置构建可用节点集 */
 	can_reboot = node_features_g_user_update(job_ptr->user_id);
 	error_code = _build_node_list(job_ptr, &node_set_ptr, &node_set_size,
-				      err_msg, test_only, can_reboot);
+				      err_msg, test_only, can_reboot);//step1，构建节点集node_set_ptr
 	if (error_code)
 		return error_code;
 	if (node_set_ptr == NULL)	/* Should never be true */
@@ -2629,7 +2646,7 @@ extern int select_nodes(struct job_record *job_ptr, bool test_only,
 	for (i = 0; i < node_set_size; i++)
 		_set_sched_weight(node_set_ptr + i);
 	qsort(node_set_ptr, node_set_size, sizeof(struct node_set),
-	      _sort_node_set);
+	      _sort_node_set);//快排算法
 	_log_node_set(job_ptr, node_set_ptr, node_set_size);
 
 	/* ensure that selected nodes are in these node sets */
@@ -2647,8 +2664,8 @@ extern int select_nodes(struct job_record *job_ptr, bool test_only,
 	 * isn't set to override them */
 	/* info("req: %u-%u, %u", job_ptr->details->min_nodes, */
 	/*    job_ptr->details->max_nodes, part_ptr->max_nodes); */
-	error_code = get_node_cnts(job_ptr, qos_flags, part_ptr,
-				   &min_nodes, &req_nodes, &max_nodes);
+	error_code = get_node_cnts(job_ptr, qos_flags, part_ptr,//获得min_nodes，req_nodes，max_nodes几个数值
+				   &min_nodes, &req_nodes, &max_nodes);//_attempt_backfill也会调用该函数
 	if ((error_code == ESLURM_ACCOUNTING_POLICY) ||
 	    (error_code == ESLURM_REQUESTED_NODE_CONFIG_UNAVAILABLE))
 		goto cleanup;
@@ -2656,8 +2673,8 @@ extern int select_nodes(struct job_record *job_ptr, bool test_only,
 		 (error_code != ESLURM_RESERVATION_MAINT)) {
 		/* Select resources for the job here */
 		job_array_pre_sched(job_ptr);
-		error_code = _get_req_features(node_set_ptr, node_set_size,
-					       &select_bitmap, job_ptr,
+		error_code = _get_req_features(node_set_ptr, node_set_size,//step2.选择最合适节点
+					       &select_bitmap, job_ptr,//可用节点位图由select_bitmap带回来
 					       part_ptr, min_nodes, max_nodes,
 					       req_nodes, test_only,
 					       &preemptee_job_list, can_reboot,
@@ -2673,7 +2690,7 @@ extern int select_nodes(struct job_record *job_ptr, bool test_only,
 	if (select_bitmap
 	    && ((error_code == SLURM_SUCCESS) || !job_ptr->node_cnt_wag)) {
 		selected_node_cnt = bit_set_count(select_bitmap);
-		job_ptr->node_cnt_wag = selected_node_cnt;
+		job_ptr->node_cnt_wag = selected_node_cnt;//保存可能用的节点数到node_cnt_wag
 	} else
 		selected_node_cnt = req_nodes;
 
@@ -2715,7 +2732,8 @@ extern int select_nodes(struct job_record *job_ptr, bool test_only,
 	assoc_mgr_unlock(&job_read_locks);
 
 	/* set up the cpu_cnt here so we can decrement it as nodes
-	 * free up. total_cpus is set within _get_req_features */
+	 * free up. total_cpus is set within _get_req_features 
+	 * 在这里设置cpu_cnt所以我们可以在节点释放时减少它。 total_cpus在_get_req_features中设置*/
 	job_ptr->cpu_cnt = job_ptr->total_cpus;
 
 	if (!test_only && preemptee_job_list
@@ -2836,7 +2854,7 @@ extern int select_nodes(struct job_record *job_ptr, bool test_only,
 	if (!job_ptr->step_list)
 		job_ptr->step_list = list_create(NULL);
 
-	job_ptr->node_bitmap = select_bitmap;
+	job_ptr->node_bitmap = select_bitmap;//重要，选择好的节点存在作业job_ptr->node_bitmap里面，bitmap2node_name(job_ptr->node_bitmap)
 	select_bitmap = NULL;	/* nothing left to free */
 
 	/*
@@ -2935,10 +2953,10 @@ extern int select_nodes(struct job_record *job_ptr, bool test_only,
 		}
 	}
 
-	allocate_nodes(job_ptr);
+	allocate_nodes(job_ptr);//step3.实际分配节点
 	job_array_start(job_ptr);
-	build_node_details(job_ptr, true);
-	rebuild_job_part_list(job_ptr);
+	build_node_details(job_ptr, true);//设置node_addr
+	rebuild_job_part_list(job_ptr);//设置partition
 
 	if (nonstop_ops.job_begin)
 		(nonstop_ops.job_begin)(job_ptr);
@@ -2997,7 +3015,7 @@ extern int select_nodes(struct job_record *job_ptr, bool test_only,
 	 */
 	if ((slurmctld_conf.prolog_flags & PROLOG_FLAG_ALLOC) &&
 	    (!IS_JOB_CONFIGURING(job_ptr)))
-		launch_prolog(job_ptr);
+		launch_prolog(job_ptr);//执行prolog
 
 cleanup:
 	if (job_ptr->array_recs && job_ptr->array_recs->task_id_bitmap &&
@@ -3563,6 +3581,8 @@ static void _split_node_set(struct node_set *node_set_ptr,
  *	based upon node features, memory, processors, etc. Note that a
  *	bitmap is set to indicate which of the job's features that the
  *	nodes satisfy.
+ * 根据节点特性、内存、处理器等确定可以分配给作业的节点。
+ * 注意，位图被设置为指示节点满足哪些作业特性。
  * IN job_ptr - pointer to node to be scheduled
  * OUT node_set_pptr - list of node sets which could be used for the job
  * OUT node_set_size - number of node_set entries
@@ -3660,7 +3680,7 @@ static int _build_node_list(struct job_record *job_ptr,
 
 	node_set_inx = 0;
 	node_set_len = list_count(config_list) * 8 + 1;
-	node_set_ptr = (struct node_set *)
+	node_set_ptr = (struct node_set *)//分配空间
 			xmalloc(sizeof(struct node_set) * node_set_len);
 	config_iterator = list_iterator_create(config_list);
 	while ((config_ptr = (struct config_record *)
@@ -3740,7 +3760,7 @@ static int _build_node_list(struct job_record *job_ptr,
 			bit_set(tmp_feature, 0);
 		}
 		/* NOTE: FREE_NULL_BITMAP(tmp_feature) to avoid memory leak */
-
+		//设置node_set_ptr
 		node_set_ptr[node_set_inx].cpus_per_node =
 			config_ptr->cpus;
 		node_set_ptr[node_set_inx].real_memory =
@@ -4008,10 +4028,11 @@ end_node_set:
 /*
  * For a given node_set, set a scheduling weight based upon a combination of
  * node_weight (or reboot_weight) and flags (e.g. try to avoid reboot).
- * 0x20000000000 - Requires boot
- * 0x10000000000 - Outside of flex reservation
- * 0x0########00 - Node weight
+ * 0x20000000000 - Requires boot需要启动
+ * 0x10000000000 - Outside of flex reservation弹性预约之外
+ * 0x0########00 - Node weight节点权重
  * 0x000000000## - Reserved for cons_tres, favor nodes with co-located CPU/GPU
+ 					预留给cons_tres，优先选择CPU/GPU位于同一位置的节点
  */
 static void _set_sched_weight(struct node_set *node_set_ptr)
 {

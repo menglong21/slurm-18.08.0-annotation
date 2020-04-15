@@ -74,8 +74,8 @@ static pthread_rwlock_t assoc_mgr_locks[ASSOC_MGR_ENTITY_COUNT]
 	= { PTHREAD_RWLOCK_INITIALIZER };
 
 static assoc_init_args_t init_setup;
-static slurmdb_assoc_rec_t **assoc_hash_id = NULL;
-static slurmdb_assoc_rec_t **assoc_hash = NULL;
+static slurmdb_assoc_rec_t **assoc_hash_id = NULL;//哈希表存储
+static slurmdb_assoc_rec_t **assoc_hash = NULL;//哈希表存储
 static int *assoc_mgr_tres_old_pos = NULL;
 
 static bool _running_cache(void)
@@ -2426,7 +2426,7 @@ extern int assoc_mgr_fill_in_assoc(void *db_conn,
 	/* First look for the assoc with a partition and then check
 	 * for the non-partition association if we don't find one.
 	 */
-	ret_assoc = _find_assoc_rec(assoc);
+	ret_assoc = _find_assoc_rec(assoc);//从哈希表中获取assoc
 	if (!ret_assoc && assoc->partition) {
 		char *part_holder = assoc->partition;
 		assoc->partition = NULL;

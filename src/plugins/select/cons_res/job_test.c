@@ -198,7 +198,8 @@ uint16_t _allocate_cores(struct job_record *job_ptr, bitstr_t *core_map,
  *                from the given node can be allocated (if any) to this
  *                job. Returns the number of cpus that can be used by
  *                this node AND a bitmap of the selected cores.
- *
+ *给定作业要求，确定可以将给定节点中的哪些核心/套接字（如果有）分配给此作业。
+ *返回此节点可以使用的CPU数和选定核心的位图。
  * IN job_ptr       - pointer to job requirements
  * IN/OUT core_map  - bitmap of cores available for use/selected for use
  * IN part_core_map - bitmap of cores already allocated from this partition
@@ -304,7 +305,7 @@ static uint16_t _allocate_sc(struct job_record *job_ptr, bitstr_t *core_map,
 	 *
 	 * PROCEDURE:
 	 *
-	 * Step 1: Determine the current usage data: used_cores[],
+	 * Step 1: 确定当前使用数据Determine the current usage data: used_cores[],
 	 *         used_core_count, free_cores[], free_core_count
 	 *
 	 * Step 2: For core-level and socket-level: apply sockets_per_node
@@ -335,8 +336,8 @@ static uint16_t _allocate_sc(struct job_record *job_ptr, bitstr_t *core_map,
 	for (c = core_begin; c < core_end; c++) {
 		i = (uint16_t) (c - core_begin) / cores_per_socket;
 		if (bit_test(core_map, c)) {
-			free_cores[i]++;
-			free_core_count++;
+			free_cores[i]++;//重要
+			free_core_count++;//重要
 		} else if (!part_core_map) {
 			used_cores[i]++;
 		} else if (bit_test(part_core_map, c)) {
@@ -587,7 +588,9 @@ fini:
  *                        allocated to this job. Returns the number of
  *                        cpus that can be used by this node and a bitmap
  *                        of available resources for allocation.
- *       NOTE: This process does NOT support overcommitting resources
+ *	根据作业要求，确定可以将给定节点（如果有）中的哪些资源分配给此作业。 
+ *  返回此节点可以使用的cpu的数量以及可用于分配的资源的位图。
+ *  NOTE: This process does NOT support overcommitting resources 此过程不支持过度提交资源 
  *
  * IN job_ptr       - pointer to job requirements
  * IN/OUT core_map  - core_bitmap of available cores
@@ -625,7 +628,7 @@ uint16_t _can_job_run_on_node(struct job_record *job_ptr, bitstr_t *core_map,
 	core_end_bit   = cr_get_coremap_offset(node_i+1) - 1;
 	cpus_per_core  = select_node_record[node_i].cpus /
 			 (core_end_bit - core_start_bit + 1);
-	node_ptr = select_node_record[node_i].node_ptr;
+	node_ptr = select_node_record[node_i].node_ptr;//这个select_node_record从哪里来的？select_p_node_init
 	if (node_usage[node_i].gres_list)
 		gres_list = node_usage[node_i].gres_list;
 	else
@@ -654,10 +657,10 @@ uint16_t _can_job_run_on_node(struct job_record *job_ptr, bitstr_t *core_map,
 	if (gres_cores == 0)
 		return (uint16_t) 0;
 
-	if (cr_type & CR_CORE) {
+	if (cr_type & CR_CORE) {//到这儿
 		/* cpu_alloc_size = CPUs per core */
 		cpu_alloc_size = select_node_record[node_i].vpus;
-		cpus = _allocate_cores(job_ptr, core_map, part_core_map,
+		cpus = _allocate_cores(job_ptr, core_map, part_core_map,//实际选择核心
 				       node_i, &cpu_alloc_size, false);
 
 	} else if (cr_type & CR_SOCKET) {
@@ -929,7 +932,7 @@ static int _verify_node_state(struct part_res_record *cr_part_ptr,
 				goto clear_bit;
 			}
 
-		/* node is NODE_CR_AVAILABLE - check job request */
+		/* 节点是 NODE_CR_AVAILABLE - 检查作业请求 */
 		} else {
 			if (job_node_req == NODE_CR_RESERVED) {
 				if (_is_node_busy(cr_part_ptr, i, 0,
@@ -967,7 +970,7 @@ clear_bit:	/* This node is not usable by this job */
 /*
  * Given an available node_bitmap, return a corresponding available core_bitmap,
  *	excluding all specialized cores.
- *
+ * 给定一个可用的node_bitmap，返回一个对应的可用core_bitmap，不包括所有专用内核。
  * node_map IN - Bitmap of available nodes
  * core_spec IN - Count of specialized cores requested by the job or NO_VAL
  * RET bitmap of cores available for use by this job or reservation
@@ -1201,13 +1204,13 @@ static uint32_t _socks_per_node(struct job_record *job_ptr)
 }
 
 /* Compute resource usage for the given job on all available resources
- *
+ * 在所有可用资源上计算给定作业的资源使用情况 
  * IN: job_ptr     - pointer to the job requesting resources
  * IN: node_map    - bitmap of available nodes
- * IN/OUT: core_map - bitmap of available cores
+ * IN/OUT: core_map - 可用cores位图
  * IN: cr_node_cnt - total number of nodes in the cluster
  * IN: cr_type     - resource type
- * OUT: cpu_cnt    - number of cpus that can be used by this job
+ * OUT: cpu_cnt    - 数组里每个值代表，此作业可以使用的CPU数
  * IN: test_only   - ignore allocated memory check
  */
 static void _get_res_usage(struct job_record *job_ptr, bitstr_t *node_map,
@@ -1222,9 +1225,9 @@ static void _get_res_usage(struct job_record *job_ptr, bitstr_t *node_map,
 
 	cpu_cnt = xmalloc(cr_node_cnt * sizeof(uint16_t));
 	for (n = 0; n < cr_node_cnt; n++) {
-		if (!bit_test(node_map, n))
+		if (!bit_test(node_map, n))//这个函数里并没有改变node_map
 			continue;
-		cpu_cnt[n] = _can_job_run_on_node(job_ptr, core_map, n, s_p_n,
+		cpu_cnt[n] = _can_job_run_on_node(job_ptr, core_map, n, s_p_n,//注意怎么获得的cpu_cnt
 						  node_usage, cr_type,
 						  test_only, part_core_map);
 	}
@@ -1266,7 +1269,7 @@ static void _cpus_to_use(int *avail_cpus, int rem_cpus, int rem_nodes,
 	}
 }
 
-/* this is the heart of the selection process */
+/* this is the heart of the selection process这是选择过程的核心，重要 */
 static int _eval_nodes(struct job_record *job_ptr, bitstr_t *node_map,
 			uint32_t min_nodes, uint32_t max_nodes,
 			uint32_t req_nodes, uint32_t cr_node_cnt,
@@ -3040,20 +3043,22 @@ static uint16_t *_select_nodes(struct job_record *job_ptr, uint32_t min_nodes,
 		return NULL;
 
 	_log_select_maps("_select_nodes/enter", node_map, core_map);
-	/* get resource usage for this job from each available node */
+	/* get resource usage for this job from each available node
+	* 1.从每个可用节点获取此作业的资源使用情况，cpu_cnt重要
+	*/
 	_get_res_usage(job_ptr, node_map, core_map, cr_node_cnt,
 		       node_usage, cr_type, &cpu_cnt, test_only, part_core_map);
 
-	/* clear all nodes that do not have sufficient resources for this job */
+	/* 2.清除没有足够资源用于此作业的所有节点   */
 	for (n = 0; n < cr_node_cnt; n++) {
-		if (bit_test(node_map, n) && (cpu_cnt[n] == 0)) {
+		if (bit_test(node_map, n) && (cpu_cnt[n] == 0)) {//注意node_map, n和cpu_cnt[n]的关系
 			/* insufficient resources available on this node */
 			if (req_map && bit_test(req_map, n)) {
 				/* cannot clear a required node! */
 				xfree(cpu_cnt);
 				return NULL;
 			}
-			bit_clear(node_map, n);
+			bit_clear(node_map, n);//清除
 		}
 	}
 	if (bit_set_count(node_map) < min_nodes) {
@@ -3069,7 +3074,7 @@ static uint16_t *_select_nodes(struct job_record *job_ptr, uint32_t min_nodes,
 		min_nodes = MAX(min_nodes, i);
 	}
 
-	/* choose the best nodes for the job */
+	/* 3.为作业选择最佳节点	*/
 	rc = _choose_nodes(job_ptr, node_map, min_nodes, max_nodes, req_nodes,
 			   cr_node_cnt, cpu_cnt, cr_type, prefer_alloc_nodes);
 	_log_select_maps("_select_nodes/choose_nodes", node_map, core_map);
@@ -3131,18 +3136,18 @@ static void _block_whole_nodes(bitstr_t *node_bitmap,
 
 /* cr_job_test - does most of the real work for select_p_job_test(), which
  *	includes contiguous selection, load-leveling and max_share logic
- *
+ *	执行select_p_job_test()的大部分实际工作，其中包括连续选择、负载均衡和max_share逻辑
  * PROCEDURE:
  *
  * Step 1: compare nodes in "avail" node_bitmap with current node state data
  *         to find available nodes that match the job request
- *
+ *将“avail”node_bitmap中的节点与当前节点状态数据进行比较，以查找与作业请求匹配的可用节点
  * Step 2: check resources in "avail" node_bitmap with allocated resources from
  *         higher priority partitions (busy resources are UNavailable)
- *
+ *使用来自更高优先级分区的已分配资源检查“avail”node_bitmap中的资源（繁忙资源不可用）
  * Step 3: select resource usage on remaining resources in "avail" node_bitmap
- *         for this job, with the placement influenced by existing
- *         allocations
+ *         for this job, with the placement influenced by existing allocations
+ *在此作业的“avail”node_bitmap中剩余资源中选择资源使用，其放置受现有分配的影响
  */
 extern int cr_job_test(struct job_record *job_ptr, bitstr_t *node_bitmap,
 			uint32_t min_nodes, uint32_t max_nodes,
@@ -3181,17 +3186,17 @@ extern int cr_job_test(struct job_record *job_ptr, bitstr_t *node_bitmap,
 
 	free_job_resources(&job_ptr->job_resrcs);
 
-	if (mode == SELECT_MODE_TEST_ONLY)
+	if (mode == SELECT_MODE_TEST_ONLY)//创建作业时
 		test_only = true;
 	else	/* SELECT_MODE_RUN_NOW || SELECT_MODE_WILL_RUN  */
 		test_only = false;
 
-	/* check node_state and update the node_bitmap as necessary */
+	/* check node_state and update the node_bitmap as necessary检查node_state并根据需要更新node_bitmap */
 	if (!test_only) {
 		error_code = _verify_node_state(cr_part_ptr, job_ptr,
 						node_bitmap, cr_type,
 						node_usage, job_node_req,
-						exc_core_bitmap, qos_preemptor);
+						exc_core_bitmap, qos_preemptor);//exc_core_bitmap仍然为空
 		if (error_code != SLURM_SUCCESS) {
 			return error_code;
 		}
@@ -3226,15 +3231,16 @@ extern int cr_job_test(struct job_record *job_ptr, bitstr_t *node_bitmap,
 		job_ptr->bit_flags |= NODE_MEM_CALC;	/* To be calculated */
 
 	orig_map = bit_copy(node_bitmap);
-	avail_cores = make_core_bitmap(node_bitmap,
-				       job_ptr->details->core_spec);
+	avail_cores = make_core_bitmap(node_bitmap,//根据给定的节点位图生成对应的核心位图，
+				       job_ptr->details->core_spec);//这里gdb显示avail_cores只是复制了node_bitmap
 
 	/* test to make sure that this job can succeed with all avail_cores
+	 * 测试以确保此作业可以在所有avail_cores下成功
 	 * if 'no' then return FAIL
 	 * if 'yes' then we will seek the optimal placement for this job
-	 *          within avail_cores
+	 *          within avail_cores如果'yes'那么我们将在avail_cores中寻找这个作业的最佳位置
 	 */
-	free_cores = bit_copy(avail_cores);
+	free_cores = bit_copy(avail_cores);//复制avail_cores
 	cpu_count = _select_nodes(job_ptr, min_nodes, max_nodes, req_nodes,
 				  node_bitmap, cr_node_cnt, free_cores,
 				  node_usage, cr_type, test_only,
@@ -3249,7 +3255,7 @@ extern int cr_job_test(struct job_record *job_ptr, bitstr_t *node_bitmap,
 			     "insufficient resources");
 		}
 		return SLURM_ERROR;
-	} else if (test_only) {
+	} else if (test_only) {//作业创建时_select_nodes可以返回节点数，但是到这就返回了，其实啥也没干
 		FREE_NULL_BITMAP(orig_map);
 		FREE_NULL_BITMAP(free_cores);
 		FREE_NULL_BITMAP(avail_cores);
@@ -3273,7 +3279,7 @@ extern int cr_job_test(struct job_record *job_ptr, bitstr_t *node_bitmap,
 		 * so we can jump right to job allocation from here */
 		goto alloc_job;
 	}
-	xfree(cpu_count);
+	xfree(cpu_count);//上面只是测试，所以在这里这个值其实没有实际用处
 	if (select_debug_flags & DEBUG_FLAG_SELECT_TYPE) {
 		info("cons_res: cr_job_test: test 0 pass - "
 		     "job fits on given resources");
@@ -3282,33 +3288,41 @@ extern int cr_job_test(struct job_record *job_ptr, bitstr_t *node_bitmap,
 	/* now that we know that this job can run with the given resources,
 	 * let's factor in the existing allocations and seek the optimal set
 	 * of resources for this job. Here is the procedure:
-	 *
+	 * 既然我们知道这个作业可以在给定的资源下运行，
+	 * 那么让我们考虑现有的分配并为这个作业寻找最优的资源集。程序如下:
 	 * Step 1: Seek idle CPUs across all partitions. If successful then
 	 *         place job and exit. If not successful, then continue. Two
 	 *         related items to note:
 	 *          1. Jobs that don't share CPUs finish with step 1.
 	 *          2. The remaining steps assume sharing or preemption.
-	 *
+	 * 在所有分区查找空闲cpu。如果成功，则放置作业并退出。
+	 * 如果没有成功，那么继续。需要注意的两个相关项目:
+	 * 1. 不共享cpu的作业完成于步骤1。
+	 * 2. 其余步骤假定共享或抢占。
 	 * Step 2: Remove resources that are in use by higher-priority
 	 *         partitions, and test that job can still succeed. If not
 	 *         then exit.
-	 *
+	 * 删除优先级较高的分区正在使用的资源，并测试该作业是否仍然可以成功。 
+	 * 如果没有，那么退出。
 	 * Step 3: Seek idle nodes among the partitions with the same
 	 *         priority as the job's partition. If successful then
 	 *         goto Step 6. If not then continue:
-	 *
+	 * 在与作业分区具有相同优先级的分区中寻找空闲节点。
+	 * 如果成功了，进入步骤6。如果没有，请继续:
 	 * Step 4: Seek placement within the job's partition. Search
 	 *         row-by-row. If no placement if found, then exit. If a row
 	 *         is found, then continue:
-	 *
+	 * 在作业的分区中寻找位置。逐行搜索。如果找不到放置，则退出。如果找到一行，则继续：
 	 * Step 5: Place job and exit. FIXME! Here is where we need a
 	 *         placement algorithm that recognizes existing job
 	 *         boundaries and tries to "overlap jobs" as efficiently
 	 *         as possible.
-	 *
+	 * 放置作业并退出。FIXME!在这里，我们需要一种定位算法来识别现有的作业边界，
+	 * 并尽可能有效地“重叠工作”。
 	 * Step 6: Place job and exit. FIXME! here is we use a placement
 	 *         algorithm similar to Step 5 on jobs from lower-priority
 	 *         partitions.
+	 * 放置作业并退出。FIXME!这里，我们使用类似于第5步的布局算法来处理来自低优先级分区的作业。
 	 */
 
 
@@ -3362,7 +3376,7 @@ extern int cr_job_test(struct job_record *job_ptr, bitstr_t *node_bitmap,
 	if (job_ptr->details->whole_node == 1)
 		_block_whole_nodes(node_bitmap, avail_cores, free_cores);
 
-	cpu_count = _select_nodes(job_ptr, min_nodes, max_nodes, req_nodes,
+	cpu_count = _select_nodes(job_ptr, min_nodes, max_nodes, req_nodes,//一般到这里才实际选择资源
 				  node_bitmap, cr_node_cnt, free_cores,
 				  node_usage, cr_type, test_only,
 				  part_core_map, prefer_alloc_nodes);
@@ -3648,10 +3662,11 @@ extern int cr_job_test(struct job_record *job_ptr, bitstr_t *node_bitmap,
 	 * and existing jobs in the other partitions with <= priority to
 	 * this partition */
 
-alloc_job:
+alloc_job://非常重要
 	/* at this point we've found a good set of
 	 * bits to allocate to this job:
-	 * - node_bitmap is the set of nodes to allocate
+	 * 到这我们找到了一组很好的位分配给这个工作
+	 * - node_bitmap 是要分配的节点集
 	 * - free_cores is the set of allocated cores
 	 * - cpu_count is the number of cpus per allocated node
 	 *

@@ -111,7 +111,7 @@
 #else  /* !__GNUC__ */
 #  define __NORETURN_ATTR			((void)0)
 #endif /* __GNUC__ */
-
+//条件变量
 #define slurm_cond_init(cond, cont_attr)				\
 	do {								\
 		int err = pthread_cond_init(cond, cont_attr);		\
@@ -170,7 +170,7 @@
 		}							\
 	} while (0)
 
-
+//mutex锁，某些情况使用atomic原子操作可以获得更好性能！
 #define slurm_mutex_init(mutex)						\
 	do {								\
 		int err = pthread_mutex_init(mutex, NULL);		\
@@ -214,7 +214,7 @@
 			abort();					\
 		}							\
 	} while (0)
-
+//读写锁
 #define slurm_rwlock_init(rwlock)					\
 	do {								\
 		int err = pthread_rwlock_init(rwlock, NULL);		\
@@ -269,6 +269,9 @@
 		if (pthread_attr_init(attr))				\
 			fatal("pthread_attr_init: %m");			\
 		/* we want 1:1 threads if there is a choice */		\
+		//设置线程绑定状态的函数为pthread_attr_setscope，
+		//它有两个参数，第一个是指向属性结构的指针，
+		//第二个是绑定类型，它有两个取值：PTHREAD_SCOPE_SYSTEM（绑定的）和PTHREAD_SCOPE_PROCESS（非绑定的）
 		if (pthread_attr_setscope(attr, PTHREAD_SCOPE_SYSTEM))	\
 			error("pthread_attr_setscope: %m");		\
 		if (pthread_attr_setstacksize(attr, 1024*1024))		\

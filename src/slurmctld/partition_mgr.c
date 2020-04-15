@@ -77,7 +77,7 @@
 
 /* Global variables */
 struct part_record default_part;	/* default configuration values */
-List part_list = NULL;			/* partition list */
+List part_list = NULL;			/* 全局分区链表 */
 char *default_part_name = NULL;		/* name of default partition */
 struct part_record *default_part_loc = NULL; /* default partition location */
 time_t last_part_update = (time_t) 0;	/* time of last update to partition records */
@@ -245,7 +245,7 @@ extern int build_part_bitmap(struct part_record *part_ptr)
 			bit_clear(old_bitmap,
 				  (int) (node_ptr -
 					 node_record_table_ptr));
-		bit_set(part_ptr->node_bitmap,
+		bit_set(part_ptr->node_bitmap,//设置分区结构里面节点位图的相应位
 			(int) (node_ptr - node_record_table_ptr));
 		free(this_node_name);
 	}
@@ -870,6 +870,7 @@ struct part_record *find_part_record(char *name)
 		error("part_list is NULL");
 		return NULL;
 	}
+	//遍历全局分区链表part_list，找到名为name分区
 	return list_find_first(part_list, &list_find_part, name);
 }
 
@@ -997,7 +998,7 @@ int init_part_conf(void)
 	if (part_list)		/* delete defunct partitions */
 		(void) _delete_part_record(NULL);
 	else
-		part_list = list_create(_list_delete_part);
+		part_list = list_create(_list_delete_part);//创建分区配置链表part_list
 
 	xfree(default_part_name);
 	default_part_loc = (struct part_record *) NULL;

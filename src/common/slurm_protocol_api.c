@@ -253,7 +253,7 @@ uint16_t slurm_get_batch_start_timeout(void)
 	if (slurmdbd_conf) {
 	} else {
 		conf = slurm_conf_lock();
-		batch_start_timeout = conf->batch_start_timeout;
+		batch_start_timeout = conf->batch_start_timeout;//BatchStartTimeout
 		slurm_conf_unlock();
 	}
 	return batch_start_timeout;
@@ -579,7 +579,7 @@ uint16_t slurm_get_msg_timeout(void)
 	uint16_t msg_timeout = 0;
 	slurm_ctl_conf_t *conf;
 
- 	if (slurmdbd_conf) {
+ 	if (slurmdbd_conf) {//如果slurmdbd.conf中设置了该项，以slurmdbd.conf中为准
 		msg_timeout = slurmdbd_conf->msg_timeout;
 	} else {
 		conf = slurm_conf_lock();
@@ -1490,6 +1490,7 @@ extern int slurm_set_auth_type(char *auth_type)
  * get hash val of the slurm.conf from slurmctld_conf object from
  * slurmctld_conf object
  * RET uint32_t  - hash_val
+ 从slurmctld_conf对象获得hash_val
  */
 uint32_t slurm_get_hash_val(void)
 {
@@ -3406,6 +3407,8 @@ int slurm_receive_msg(int fd, slurm_msg_t *msg, int timeout)
 	 *  length and allocate space on the heap for a buffer containing
 	 *  the message.
 	 */
+	 //收到一个消息。 
+	 //slurm_msg_recvfrom()将读取消息长度并在堆上为包含该消息的缓冲区分配空间。
 	if (slurm_msg_recvfrom_timeout(fd, &buf, &buflen, 0, timeout) < 0) {
 		rc = errno;
 		goto endit;
@@ -4426,7 +4429,7 @@ _send_and_recv_msgs(int fd, slurm_msg_t *req, int timeout)
 			timeout = slurm_get_msg_timeout() * 1000;
 		req->forward.timeout = timeout;
 	}
-	if (slurm_send_node_msg(fd, req) >= 0) {
+	if (slurm_send_node_msg(fd, req) >= 0) {//发送消息
 		if (req->forward.cnt > 0) {
 			/* figure out where we are in the tree and set
 			 * the timeout for to wait for our children
@@ -4447,7 +4450,7 @@ _send_and_recv_msgs(int fd, slurm_msg_t *req, int timeout)
 
 			timeout += (req->forward.timeout*steps);
 		}
-		ret_list = slurm_receive_msgs(fd, steps, timeout);
+		ret_list = slurm_receive_msgs(fd, steps, timeout);//接收消息
 	}
 
 	(void) close(fd);
@@ -4798,7 +4801,7 @@ List slurm_send_recv_msgs(const char *nodelist, slurm_msg_t *msg,
  *		    (if any) we forwarded the message to. List
  *		    containing type (ret_types_t).
  */
- //发送一个消息给msg->address,然后返回包含类型的List
+ //发送一个消息给msg->address,然后返回包含ret_data_info_t类型的List
 List slurm_send_addr_recv_msgs(slurm_msg_t *msg, char *name, int timeout)
 {
 	static pthread_mutex_t conn_lock = PTHREAD_MUTEX_INITIALIZER;

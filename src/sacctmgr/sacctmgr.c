@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 	quiet_flag        = 0;
 	readonly_flag     = 0;
 	verbosity         = 0;
-	slurm_conf_init(NULL);//解析slurmdbd.conf文件，初始化配置
+	slurm_conf_init(NULL);//解析slurm.conf文件，初始化配置
 	log_init("sacctmgr", opts, SYSLOG_FACILITY_DAEMON, NULL);
 
 	//解析命令行参数

@@ -100,9 +100,9 @@ extern int slurm_priority_init(void)
 	if (g_priority_context)
 		goto done;
 
-	type = slurm_get_priority_type();
+	type = slurm_get_priority_type();//根据配置文件获取优先级插件类型
 
-	g_priority_context = plugin_context_create(
+	g_priority_context = plugin_context_create(//获取优先级插件上下文
 		plugin_type, type, (void **)&ops, syms, sizeof(syms));
 
 	if (!g_priority_context) {

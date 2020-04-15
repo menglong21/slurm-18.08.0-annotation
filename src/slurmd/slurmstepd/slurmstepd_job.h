@@ -205,7 +205,7 @@ typedef struct {
 
 	pthread_t      ioid;  /* pthread id of IO thread                    */
 	pthread_t      msgid; /* pthread id of message thread               */
-	eio_handle_t  *msg_handle; /* eio handle for the message thread     */
+	eio_handle_t  *msg_handle; /* 消息线程的eio句柄     */
 
 	pid_t          jmgr_pid;     /* job manager pid                     */
 	pid_t          pgid;         /* process group id for tasks          */

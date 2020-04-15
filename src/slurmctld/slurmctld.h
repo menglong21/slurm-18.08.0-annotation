@@ -75,6 +75,9 @@
  * Also maximum parallel threads to service outgoing RPCs (separate counter).
  * Since some systems schedule pthread on a First-In-Last-Out basis,
  * increasing this value is strongly discouraged. */
+//为传入RPC提供服务的最大并行线程数。
+//为传出RPC提供服务的最大并行线程数(单独计数器)。
+//由于有些操作系统在先入后出的基础上调度线程，因此强烈不鼓励增加此值。
 #ifndef MAX_SERVER_THREADS
 #define MAX_SERVER_THREADS 256//最大的并行线程，以服务传入的RPC。不建议增大该值
 #endif
@@ -149,7 +152,7 @@ typedef struct slurmctld_config {
 	slurm_cred_ctx_t cred_ctx;//认证上下文
 	pthread_cond_t thread_count_cond;
 	pthread_mutex_t thread_count_lock;
-	//几个线程id
+	//几个子线程id
 	pthread_t thread_id_main;
 	pthread_t thread_id_save;
 	pthread_t thread_id_sig;
@@ -158,7 +161,7 @@ typedef struct slurmctld_config {
 	pthread_t thread_id_rpc;
 } slurmctld_config_t;
 
-/* Job scheduling statistics */
+/* 作业调度统计信息 */
 typedef struct diag_stats {
 	int proc_req_threads;
 	int proc_req_raw;
@@ -221,7 +224,7 @@ extern slurmctld_config_t slurmctld_config;
 extern void *acct_db_conn;
 extern int   accounting_enforce;
 extern int   association_based_accounting;
-extern int   backup_inx;		/* BackupController# index */
+extern int   backup_inx;		/* 备用控制器索引号 */
 extern int   batch_sched_delay;
 extern time_t control_time;		/* Time when became primary controller */
 extern uint32_t   cluster_cpus;
@@ -326,28 +329,22 @@ extern time_t last_front_end_update;	/* time of last front_end update */
  *  PARTITION parameters and data structures分区相关参数和数据结构
 \*****************************************************************************/
 #define PART_MAGIC 0xaefe8495
-
+//该结构体描述了一个分区包含的所有资源，每个分区一个
+//所有分区的串联成一个全局链表part_list，slurm管理资源的方式
 struct part_record {
-	uint32_t magic;		/* magic cookie to test data integrity */
-				/* DO NOT ALPHABETIZE */
-	char *allow_accounts;	/* comma delimited list of accounts,
-				 * NULL indicates all */
-	char **allow_account_array; /* NULL terminated list of allowed
-				 * accounts */
-	char *allow_alloc_nodes;/* comma delimited list of allowed
-				 * allocating nodes
-				 * NULL indicates all */
-	char *allow_groups;	/* comma delimited list of groups,
-				 * NULL indicates all */
+	uint32_t magic;		/* 测试数据完整性的magic cookie，不要用字母表示*/
+	char *allow_accounts;	/* 逗号分隔的帐户列表，NULL表示全部	*/
+	char **allow_account_array; /* NULL terminated list of allowed accounts */
+	char *allow_alloc_nodes;/* 逗号分隔的允许分配节点列表，NULL表示全部*/
+	char *allow_groups;	/* 逗号分隔的组列表，NULL表示全部 */
 	uid_t *allow_uids;	/* zero terminated list of allowed user IDs */
-	char *allow_qos;	/* comma delimited list of qos,
-				 * NULL indicates all */
+	char *allow_qos;	/* 逗号分隔的qos列表，NULL表示全部 */
 	bitstr_t *allow_qos_bitstr; /* (DON'T PACK) assocaited with
 				 * char *allow_qos but used internally */
-	char *alternate; 	/* name of alternate partition */
+	char *alternate; 	/* 备用分区名称	*/
 	double *billing_weights;    /* array of TRES billing weights */
 	char   *billing_weights_str;/* per TRES billing weight string */
-	uint32_t cpu_bind;	/* default CPU binding type */
+	uint32_t cpu_bind;	/* 默认CPU绑定类型 */
 	uint64_t def_mem_per_cpu; /* default MB memory per allocated CPU */
 	uint32_t default_time;	/* minutes, NO_VAL or INFINITE */
 	char *deny_accounts;	/* comma delimited list of denied accounts */
@@ -355,39 +352,38 @@ struct part_record {
 	char *deny_qos;		/* comma delimited list of denied qos */
 	bitstr_t *deny_qos_bitstr; /* (DON'T PACK) associated with
 				 * char *deny_qos but used internallly */
-	uint16_t flags;		/* see PART_FLAG_* in slurm.h */
+	uint16_t flags;		/* see PART_FLAG_* in slurm.h分区标志位*/
 	uint32_t grace_time;	/* default preempt grace time in seconds */
 	List job_defaults_list;	/* List of job_defaults_t elements */
 	uint32_t max_cpus_per_node; /* maximum allocated CPUs per node */
 	uint64_t max_mem_per_cpu; /* maximum MB memory per allocated CPU */
 	uint32_t max_nodes;	/* per job or INFINITE */
 	uint32_t max_nodes_orig;/* unscaled value (c-nodes on BlueGene) */
-	uint16_t max_share;	/* number of jobs to gang schedule */
+	uint16_t max_share;	/* number of jobs to gang schedule，分区配置项OverSubscribe */
 	uint32_t max_time;	/* minutes or INFINITE */
 	uint32_t min_nodes;	/* per job */
 	uint32_t min_nodes_orig;/* unscaled value (c-nodes on BlueGene) */
-	char *name;		/* name of the partition */
-	bitstr_t *node_bitmap;	/* bitmap of nodes in partition */
-	char *nodes;		/* comma delimited list names of nodes */
-	double   norm_priority;	/* normalized scheduling priority for
-				 * jobs (DON'T PACK) */
+	char *name;		/* 分区名 */
+	bitstr_t *node_bitmap;	/* 分区中的节点位图 */
+	char *nodes;		/* 逗号分隔的节点列表名称 */
+	double   norm_priority;	/* 作业的归一化调度优先级(DON'T PACK) */
 	uint16_t over_time_limit; /* job's time limit can be exceeded by this
 				   * number of minutes before cancellation */
-	uint16_t preempt_mode;	/* See PREEMPT_MODE_* in slurm/slurm.h */
-	uint16_t priority_job_factor;	/* job priority weight factor */
-	uint16_t priority_tier;	/* tier for scheduling and preemption */
-	char *qos_char;         /* requested QOS from slurm.conf */
+	uint16_t preempt_mode;	/* See PREEMPT_MODE_* in slurm/slurm.h抢占模式*/
+	uint16_t priority_job_factor;	/* 作业优先级权重因子 */
+	uint16_t priority_tier;	/* 用于调度和抢占的层	*/
+	char *qos_char;         /* 请求的QOS来自 slurm.conf */
 	slurmdb_qos_rec_t *qos_ptr; /* pointer to the quality of
 				     * service record attached to this
 				     * partition confirm the value before use */
-	uint16_t state_up;	/* See PARTITION_* states in slurm.h */
-	uint32_t total_nodes;	/* total number of nodes in the partition */
-	uint32_t total_cpus;	/* total number of cpus in the partition */
-	uint32_t max_cpu_cnt;	/* max # of cpus on a node in the partition */
-	uint32_t max_core_cnt;	/* max # of cores on a node in the partition */
+	uint16_t state_up;	/* See PARTITION_* states in slurm.h 分区状态*/
+	uint32_t total_nodes;	/* 分区中的节点总数	*/
+	uint32_t total_cpus;	/* 分区中的cpu总数 */
+	uint32_t max_cpu_cnt;	/* 分区单个节点上的最大cpus数 */
+	uint32_t max_core_cnt;	/* 分区单个节点上的最大核心数 */
 	uint16_t cr_type;	/* Custom CR values for partition (if supported by select plugin) */
 	uint64_t *tres_cnt;	/* array of total TRES in partition. NO_PACK */
-	char     *tres_fmt_str;	/* str of configured TRES in partition */
+	char     *tres_fmt_str;	/* str of configured TRES in partition,类似cpu=4,mem=2G,node=2,billing=4*/
 };
 
 extern List part_list;			/* list of part_record entries */
@@ -427,10 +423,10 @@ typedef struct slurmctld_resv {
 	bool flags_set_node;	/* flags (i.e. NODE_STATE_MAINT |
 				 * NODE_STATE_RES) set for nodes	*/
 	char *name;		/* name of reservation			*/
-	bitstr_t *node_bitmap;	/* bitmap of reserved nodes		*/
+	bitstr_t *node_bitmap;	/* 预约节点的位图*/
 	uint32_t node_cnt;	/* count of nodes required		*/
-	char *node_list;	/* list of reserved nodes or ALL	*/
-	char *partition;	/* name of partition to be used		*/
+	char *node_list;	/* 预约节点链表或者所有节点 	*/
+	char *partition;	/* 要使用的分区名 */
 	struct part_record *part_ptr;	/* pointer to partition used	*/
 	uint32_t resv_id;	/* unique reservation ID, internal use	*/
 	uint32_t resv_watts;	/* amount of power to reserve */
@@ -482,7 +478,7 @@ typedef struct job_feature {
 #define WHOLE_NODE_USER		0x02
 #define WHOLE_NODE_MCS		0x03
 
-/* job_details - specification of a job's constraints,
+/* job_details - specification of a job's constraints, 作业约束的规范,作业描述符job_record的一部分
  * can be purged after initiation */
 struct job_details {
 	uint32_t magic;			/* magic cookie for data integrity */
@@ -560,8 +556,7 @@ struct job_details {
 	uint16_t requeue;		/* controls ability requeue job */
 	char *restart_dir;		/* restart execution from ckpt images
 					 * in this dir */
-	uint8_t share_res;		/* set if job can share resources with
-					 * other jobs */
+	uint8_t share_res;		/* 设置作业是否可以与其他作业共享资源，该配置项由sbatch                        -s, --oversubscribe指定	*/
 	char *std_err;			/* pathname of job's stderr file */
 	char *std_in;			/* pathname of job's stdin file */
 	char *std_out;			/* pathname of job's stdout file */
@@ -572,7 +567,8 @@ struct job_details {
 	uint32_t usable_nodes;		/* node count needed by preemption */
 	uint8_t whole_node;		/* WHOLE_NODE_REQUIRED: 1: --exclusive
 					 * WHOLE_NODE_USER: 2: --exclusive=user
-					 * WHOLE_NODE_MCS:  3: --exclusive=mcs */
+					 * WHOLE_NODE_MCS:  3: --exclusive=mcs 
+					 *	该配置项由sbatch --exclusive指定，优先级小于分区配置*/
 	char *work_dir;			/* pathname of working directory */
 	uint16_t x11;			/* --x11 flags */
 	char *x11_magic_cookie;		/* x11 magic cookie */
@@ -617,6 +613,7 @@ typedef struct {
 /*
  * NOTE: When adding fields to the job_record, or any underlying structures,
  * be sure to sync with job_array_split.
+ * 作业描述符
  */
 struct job_record {
 	uint32_t magic;			/* magic cookie for data integrity */
@@ -625,7 +622,7 @@ struct job_record {
 	char    *account;		/* account number to charge */
 	char    *admin_comment;		/* administrator's arbitrary comment */
 	char	*alias_list;		/* node name to address aliases */
-	char    *alloc_node;		/* local node making resource alloc */
+	char    *alloc_node;		/* local node making resource alloc 提交节点*/
 	uint16_t alloc_resp_port;	/* RESPONSE_RESOURCE_ALLOCATION port */
 	uint32_t alloc_sid;		/* local sid making resource alloc */
 	uint32_t array_job_id;		/* job_id of a job array or 0 if N/A */
@@ -660,19 +657,19 @@ struct job_record {
 					 * by the job, decremented while job is
 					 * completing */
 	char *cpus_per_tres;		/* semicolon delimited list of TRES=# values */
-	uint16_t cr_enabled;            /* specify if Consumable Resources
-					 * is enabled. Needed since CR deals
-					 * with a finer granularity in its
+	uint16_t cr_enabled;            /* specify if Consumable Resources指定是否启用CR
+					 * is enabled. Needed since CR deals因为CR处理的node/CPU调度（可用CPU而不是可用节点）的
+					 * with a finer granularity in its 粒度比线性插件更细，所以需要
 					 * node/cpu scheduling (available cpus
 					 * instead of available nodes) than the
 					 * linear plugin
-					 * 0 if cr is NOT enabled,
-					 * 1 if cr is enabled */
+					 * 0 if cr is NOT enabled,0未启用cr
+					 * 1 if cr is enabled 1启动cr*/
 	uint64_t db_index;              /* used only for database plugins */
 	time_t deadline;		/* deadline */
 	uint32_t delay_boot;		/* Delay boot for desired node mode */
 	uint32_t derived_ec;		/* highest exit code of all job steps */
-	struct job_details *details;	/* job details */
+	struct job_details *details;	/* 作业细节信息 */
 	uint16_t direct_set_prio;	/* Priority set directly if
 					 * set the system will not
 					 * change the priority any further. */
@@ -709,7 +706,7 @@ struct job_record {
 	struct job_record *job_array_next_j; /* job array linked list by job_id */
 	struct job_record *job_array_next_t; /* job array linked list by task_id */
 	job_resources_t *job_resrcs;	/* details of allocated cores */
-	uint32_t job_state;		/* state of the job */
+	uint32_t job_state;		/* 作业状态 */
 	uint16_t kill_on_node_fail;	/* 1 if job should be killed on
 					 * node failure */
 	time_t last_sched_eval;		/* last time job was evaluated for scheduling */
@@ -732,19 +729,18 @@ struct job_record {
 					 * do not pack. this is here to cache
 					 * the record, and may not be set
 					 * depending on configuration */
-	char *nodes;			/* list of nodes allocated to job */
-	slurm_addr_t *node_addr;	/* addresses of the nodes allocated to
-					 * job */
-	bitstr_t *node_bitmap;		/* bitmap of nodes allocated to job */
+	char *nodes;			/* 分配给作业的节点列表 */
+	slurm_addr_t *node_addr;	/* 分配给作业的节点的地址 */
+	bitstr_t *node_bitmap;		/* 分配给作业的节点的位图	*/
 	bitstr_t *node_bitmap_cg;	/* bitmap of nodes completing job */
 	uint32_t node_cnt;		/* count of nodes currently
 					 * allocated to job */
-	uint32_t node_cnt_wag;		/* count of nodes Slurm thinks
-					 * will be allocated when the
+	uint32_t node_cnt_wag;		/* count of nodes Slurm thinks该项在作业创建时被赋值
+					 * will be allocated when the Slurm认为在挂起作业且用户没有给出node_cnt时将分配的节点数。
 					 * job is pending and node_cnt
-					 * wasn't given by the user.
+					 * wasn't given by the user.在转储状态时，它被打包在total_nodes中。
 					 * This is packed in total_nodes
-					 * when dumping state.  When
+					 * when dumping state.  When当读取状态时，检查挂起状态，并设置此状态而不是total_nodes
 					 * state is read in check for
 					 * pending state and set this
 					 * instead of total_nodes */
@@ -816,7 +812,7 @@ struct job_record {
 	List step_list;			/* list of job's steps */
 	time_t suspend_time;		/* time job last suspended or resumed */
 	char *system_comment;		/* slurmctld's arbitrary comment */
-	time_t time_last_active;	/* time of last job activity */
+	time_t time_last_active;	/* 上次作业活动时间	*/
 	uint32_t time_limit;		/* time_limit minutes or INFINITE,
 					 * NO_VAL implies partition max_time */
 	uint32_t time_min;		/* minimum time_limit minutes or
@@ -891,6 +887,7 @@ struct	depend_spec {
 #define STEP_FLAG 0xbbbb
 #define STEP_MAGIC 0xcafecafe
 
+//作业步描述符
 struct 	step_record {
 	uint32_t magic;			/* magic cookie to test data integrity */
 					/* DO NOT ALPHABETIZE */

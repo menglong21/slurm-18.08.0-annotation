@@ -102,6 +102,7 @@ _reset_period_str(uint16_t reset_period)
  * IN node_info_ptr - pointer to node table of information
  * IN part_info_ptr - pointer to partition information
  */
+ //输出配置文件内容
 void slurm_write_ctl_conf ( slurm_ctl_conf_info_msg_t * slurm_ctl_conf_ptr,
 			    node_info_msg_t * node_info_ptr,
 			    partition_info_msg_t * part_info_ptr)
@@ -153,10 +154,10 @@ void slurm_write_ctl_conf ( slurm_ctl_conf_info_msg_t * slurm_ctl_conf_ptr,
 	fprintf(fp,
 		"########################################################\n");
 	fprintf(fp, "#\n#\n");
-
+//将配置结构体里面的各个项解析成键值对，挂到链表ret_list上返回
 	ret_list = slurm_ctl_conf_2_key_pairs(slurm_ctl_conf_ptr);
 	if (ret_list) {
-		_write_key_pairs(fp, ret_list);
+		_write_key_pairs(fp, ret_list);//将解析出来的配置链写到文件里
 		FREE_NULL_LIST(ret_list);
 	}
 
@@ -488,6 +489,7 @@ void slurm_print_ctl_conf ( FILE* out,
 			      select_title);
 
 }
+//将配置结构体里面的各个项解析成键值对，挂到链表ret_list上返回
 extern void *slurm_ctl_conf_2_key_pairs (slurm_ctl_conf_t* slurm_ctl_conf_ptr)
 {
 	List ret_list = NULL;
@@ -793,7 +795,7 @@ extern void *slurm_ctl_conf_2_key_pairs (slurm_ctl_conf_t* slurm_ctl_conf_ptr)
 	list_append(ret_list, key_pair);
 
 	if (slurm_ctl_conf_ptr->hash_val != NO_VAL) {
-		if (slurm_ctl_conf_ptr->hash_val == slurm_get_hash_val())
+		if (slurm_ctl_conf_ptr->hash_val == slurm_get_hash_val())//使用hash_val校验配置
 			snprintf(tmp_str, sizeof(tmp_str), "Match");
 		else {
 			snprintf(tmp_str, sizeof(tmp_str),
@@ -1984,7 +1986,7 @@ static void _write_key_pairs(FILE* out, void *key_pairs)
 
 	if (!config_list)
 		return;
-
+	//遍历包含所有配置项的键值对链表，将不同的配置项写到不同的链表中
 	iter = list_iterator_create(config_list);
 	while ((key_pair = list_next(iter))) {
 		/* Ignore ENV variables in config_list; they'll
@@ -2169,11 +2171,11 @@ static void _write_key_pairs(FILE* out, void *key_pairs)
 			list_append(proepilog_list, temp);
 			continue;
 		} else {
-			list_append(other_list, temp);
+			list_append(other_list, temp);//没有分类的写入other_list
 		}
 	}
 	list_iterator_destroy(iter);
-
+	//遍历不同链表，分类打印
 	_write_group_header (out, "CONTROL");
 	iter = list_iterator_create(control_list);
 	while ((temp = list_next(iter)))
